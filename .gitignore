@@ -9,6 +9,7 @@ venv/
 # Ortam ve gizli bilgiler
 .env
 .env.*
+!.env.example
 
 # Veri ve model dosyaları
 data/raw/
@@ -16,7 +17,8 @@ data/processed/
 *.parquet
 *.csv
 !data/bist100_symbols.csv
-models/checkpoints/
+ml/checkpoints/
+data/cache/
 *.safetensors
 *.bin
 *.pt
