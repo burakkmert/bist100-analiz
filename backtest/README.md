@@ -2,4 +2,4 @@
 
 - Walk-forward test; model geleceği hiç görmez.
 - Baseline'lar: naive (yarın = bugün), hareketli ortalama, ARIMA.
-- Metrikler: MAPE, MAE, yön doğruluğu, kapsama oranı, strateji getirisi (işlem maliyetiyle).
+- Metrikler: MAE, MAPE, MASE, yön doğruluğu, kapsama oranı, strateji getirisi (işlem maliyetiyle).

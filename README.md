@@ -1,32 +1,36 @@
-# BIST100 Analiz
+# Fon ve Hisse Takip Uygulaması
 
-BIST100 hisseleri için Google TimesFM ve Amazon Chronos modellerini kendi karar motorumuzla birleştiren, uzman gibi yorum yapan bir analiz uygulaması. Bitirme projesi.
+BIST hisseleri (~500+) ve TEFAS fonları için, hazır zaman serisi modelleri (Google TimesFM 2.5, Amazon Chronos-2) ile kendi karar motorumuzu birleştiren, grafik okuyup yorumlayan yapay zekâ destekli mobil uygulama. Bitirme projesi, 3 kişilik ekip.
 
-> Bu uygulama yatırım tavsiyesi değildir.
+> Bu uygulama yatırım tavsiyesi değildir (SPK). Metinler "model sinyali", "olasılık", "senaryo" diliyle yazılır.
 
-## Mimari
+## Mimari (gece işi, her iş günü)
 
-```
-Veri toplayıcı → Model servisi (TimesFM + Chronos) → Karar motoru
-                                                        ↓
-              PWA arayüz ← FastAPI backend ← Veritabanı
-```
-
-Tahminler her akşam seans kapanışından sonra toplu üretilir; uygulama hazır sonucu okur.
-
-## Klasörler ve sorumlular
-
-| Klasör | İçerik | Sorumlu |
+| Saat | Adım | Sahibi |
 | --- | --- | --- |
-| `data/` | BIST100 listesi, fiyat verisi çekme ve temizleme | Kişi 2 |
-| `models/` | TimesFM ve Chronos sarmalayıcıları, toplu tahmin | Kişi 1 |
-| `engine/` | Ensemble, teknik göstergeler, rejim tespiti | Kişi 2 |
-| `backtest/` | Walk-forward testler, baseline'lar, metrikler | Kişi 1 |
-| `backend/` | FastAPI servisi | Kişi 2 |
-| `frontend/` | PWA (web + mobil) | Kişi 3 |
-| `docs/` | Tez, raporlar, API sözleşmesi | Kişi 3 |
+| 19:00 | Veri toplama + temizleme → `prices` | Kişi 1 |
+| 20:00 | Tahmin → `forecasts`, `scenarios`, `model_errors` | Kişi 1 |
+| 21:30 | Karar + sinyal motoru → `analysis`, `signals` | Kişi 2 |
+| 22:00 | Uzman yorumu (LLM) → `ai_explanations` | Kişi 3 |
+| 22:15 | Push bildirimleri | Kişi 2 |
 
-## Kurulum
+Anlık istekler: Expo uygulaması ⇄ FastAPI ⇄ PostgreSQL; `/ai/*` → LLMProvider.
+
+## Klasörler ve sahiplik
+
+| Klasör | İçerik | Sahibi |
+| --- | --- | --- |
+| `data/` | BIST + TEFAS toplayıcılar, temizleme, doğrulama | Kişi 1 |
+| `ml/` | TimesFM, Chronos-2, baseline'lar, gece tahmin işi | Kişi 1 |
+| `backtest/` | Walk-forward testler, metrikler, raporlar | Kişi 1 |
+| `engine/` | Göstergeler, ensemble, rejim, sinyal kuralları | Kişi 2 |
+| `backend/app/{core,api,models,jobs}` | FastAPI, DB, auth, zamanlayıcı, push | Kişi 2 |
+| `backend/app/ai/` | LLMProvider, grafik okuma, sohbet, RAG | Kişi 3 |
+| `mobile/` | Expo (React Native, TypeScript) uygulaması | Kişi 3 |
+| `shared/` | `db_schema.sql`, `openapi.yaml`, sabitler — **PR + 3 onay** | Ortak |
+| `docs/` | Tez; her kişi kendi bölümü | Ortak |
+
+## Kurulum (Python tarafı)
 
 ```bash
 git clone https://github.com/burakkmert/bist100-analiz.git
@@ -34,24 +38,14 @@ cd bist100-analiz
 python -m venv .venv
 # Windows: .venv\Scripts\activate   |   Mac/Linux: source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env   # değerleri doldur
 ```
 
-Fiyat verisini çek:
+Docker Compose (PostgreSQL 16 + backend) ve CI Kişi 2 tarafından eklenecek.
 
-```bash
-python data/fetch_prices.py --years 5
-```
+## Git kuralları
 
-Backend'i sahte veriyle çalıştır:
-
-```bash
-uvicorn backend.app.main:app --reload
-# http://127.0.0.1:8000/docs
-```
-
-## Çalışma kuralları
-
-- `main` dalına doğrudan push yok. Her iş kendi dalında: `feature/chronos`, `feature/screener`.
-- Birleştirme Pull Request ile, en az bir arkadaş onayıyla.
-- Herkes kendi klasöründe çalışır; ortak dosyalar (`docs/api.md`, veritabanı modeli) yalnızca PR ile değişir.
-- Veri dosyaları, model ağırlıkları ve `.env` repoya girmez (`.gitignore`).
+- `main` korumalı, doğrudan push yok. PR + en az 1 onay + CI yeşil. `shared/` değişikliği 3 onay.
+- Dal adı: `kisi1/feature/tefas-collector`, `kisi2/feature/signal-engine`, `kisi3/feature/chat-bubble`.
+- Commit mesajı Türkçe ve açıklayıcı.
+- `.env`, veri dosyaları ve model ağırlıkları repoya girmez.
