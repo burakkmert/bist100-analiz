@@ -3,6 +3,14 @@ pandas>=2.2
 numpy>=1.26
 yfinance>=0.2.40
 pyarrow>=15.0
+PyYAML>=6.0
+
+# Veritabanı
+SQLAlchemy>=2.0
+psycopg[binary]>=3.1
+
+# Test
+pytest>=8.0
 
 # Backend
 fastapi>=0.110
