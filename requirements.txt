@@ -1,7 +1,9 @@
+# Python 3.11 gerekli (TimesFM 2.5, Chronos-2, tefasmak >=3.10 ister)
 # Veri
 pandas>=2.2
 numpy>=1.26
 yfinance>=0.2.40
+tefasmak>=1.0.1,<2
 pyarrow>=15.0
 PyYAML>=6.0
 

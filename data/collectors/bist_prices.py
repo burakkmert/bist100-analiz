@@ -138,7 +138,8 @@ def upsert_prices_db(df: pd.DataFrame, database_url: str, chunk: int = 5000) -> 
 
     engine = create_engine(database_url)
     table = Table("prices", MetaData(), autoload_with=engine)
-    records = df[PRICE_COLUMNS].to_dict("records")
+    clean = df[PRICE_COLUMNS].astype(object)
+    records = clean.where(clean.notna(), None).to_dict("records")  # NaN -> NULL (fonlarda OHLV boş)
     with engine.begin() as conn:
         for i in range(0, len(records), chunk):
             stmt = insert(table).values(records[i:i + chunk])
