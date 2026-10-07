@@ -1,0 +1,8 @@
+# data/ ayarları (Kişi 1)
+
+history_years: 5            # ilk yüklemede geriye dönük kaç yıl
+
+fund_universe:
+  fund_type: YAT            # TEFAS yatırım fonları (EMK: emeklilik, BYF: borsa yatırım fonu)
+  top_n_by_size: 300        # fon büyüklüğüne göre ilk N fon
+  extra_codes: []           # izleme listesinden gelen ek fonlar, ör. [IPB, TTE]

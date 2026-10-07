@@ -32,10 +32,12 @@ Anlık istekler: Expo uygulaması ⇄ FastAPI ⇄ PostgreSQL; `/ai/*` → LLMPro
 
 ## Kurulum (Python tarafı)
 
+**Python 3.11 gerekli.** 3.9 ile kurulumda `curl_cffi` hatası alınır.
+
 ```bash
 git clone https://github.com/burakkmert/bist100-analiz.git
 cd bist100-analiz
-python -m venv .venv
+py -3.11 -m venv .venv   # Mac/Linux: python3.11 -m venv .venv
 # Windows: .venv\Scripts\activate   |   Mac/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # değerleri doldur
