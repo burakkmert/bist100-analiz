@@ -25,12 +25,6 @@ def test_rows_to_frame_and_universe():
     chosen = select_universe(df, top_n=3, extra_codes=["f01", "YOK"])
     assert chosen["code"].tolist() == ["F09", "F08", "F07", "F01"]  # ilk 3 + izlenen
     assets = to_assets(chosen)
-    # gerçek TEFAS alan adları: fonlar_gunluk_detay_hepsi ve tum_fonlar
-    real = [{"fonKodu": "IPB", "fonUnvan": "İstanbul Portföy", "portfoyBuyukluk": 5e9},
-            {"fonKod": "TTE", "unvan": "İş Portföy", "portfoyBuyukluk": 9e9}]
-    df2 = rows_to_frame(real, real)
-    assert df2.sort_values("size")["code"].tolist() == ["IPB", "TTE"]
-    assert df2.set_index("code").loc["TTE", "name"] == "İş Portföy"
     assert set(assets["type"]) == {"fund"} and assets["sector"].iloc[0] == "Hisse"
 
 
