@@ -1,0 +1,12 @@
+{
+  "symbol": "THYAO",
+  "date": "2026-10-07",
+  "horizon_days": 5,
+  "forecast": {"low": 292.0, "mid": 306.0, "high": 318.0},
+  "direction": "up",
+  "confidence": 68,
+  "risk": "medium",
+  "regime": "trend",
+  "weights": {"timesfm": 0.6, "chronos": 0.4},
+  "comment": "SAHTE VERİ: Arayüz geliştirmesi için örnek yanıttır."
+}

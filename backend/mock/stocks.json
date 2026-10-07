@@ -1,0 +1,4 @@
+[
+  {"symbol": "THYAO", "name": "Türk Hava Yolları", "sector": "Ulaştırma", "last_price": 300.0, "change_pct": 1.2},
+  {"symbol": "GARAN", "name": "Garanti BBVA", "sector": "Bankacılık", "last_price": 120.0, "change_pct": -0.8}
+]

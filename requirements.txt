@@ -1,0 +1,18 @@
+# Veri
+pandas>=2.2
+numpy>=1.26
+yfinance>=0.2.40
+pyarrow>=15.0
+
+# Backend
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+
+# Göstergeler ve baseline'lar
+statsmodels>=0.14
+
+# Modeller (Kişi 1 test ortamındaki sürümlerle sabitleyecek)
+# torch
+# timesfm
+# chronos-forecasting

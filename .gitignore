@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Ortam ve gizli bilgiler
+.env
+.env.*
+
+# Veri ve model dosyaları
+data/raw/
+data/processed/
+*.parquet
+*.csv
+!data/bist100_symbols.csv
+models/checkpoints/
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+
+# Veritabanı
+*.db
+*.sqlite3
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.next/
+
+# Editör / işletim sistemi
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
