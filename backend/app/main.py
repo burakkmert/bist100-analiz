@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 MOCK = Path(__file__).resolve().parent.parent / "mock"
 
@@ -18,6 +19,11 @@ def _load(name: str):
     if not path.exists():
         raise HTTPException(status_code=404, detail="Veri bulunamadı")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
