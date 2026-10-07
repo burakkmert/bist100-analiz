@@ -34,10 +34,10 @@ def _pick(row: dict, *keys, default=None):
 
 
 def rows_to_frame(fund_rows: list[dict], size_rows: list[dict]) -> pd.DataFrame:
-    """tum_fonlar + fonlar_buyukluk çıktılarını tek tabloya çevirir: code, name, category, size."""
+    """Fon satırları + büyüklük satırlarını (aynı liste de olabilir) tek tabloya çevirir: code, name, category, size."""
     funds = pd.DataFrame([
         {
-            "code": str(_pick(r, "fonKodu", "kod", "code", default="")).strip().upper(),
+            "code": str(_pick(r, "fonKodu", "fonKod", "kod", "code", default="")).strip().upper(),
             "name": _pick(r, "fonUnvan", "unvan", "title", "name", default=""),
             "category": _pick(r, "fonKategori", "fonTuru", "kategori"),
         }
@@ -45,8 +45,8 @@ def rows_to_frame(fund_rows: list[dict], size_rows: list[dict]) -> pd.DataFrame:
     ])
     sizes = pd.DataFrame([
         {
-            "code": str(_pick(r, "fonKodu", "kod", "code", default="")).strip().upper(),
-            "size": float(_pick(r, "portBuyukluk", "portfoyBuyukluk", "buyukluk", default=0) or 0),
+            "code": str(_pick(r, "fonKodu", "fonKod", "kod", "code", default="")).strip().upper(),
+            "size": float(_pick(r, "portfoyBuyukluk", "portBuyukluk", "buyukluk", default=0) or 0),
             "category_size": _pick(r, "fonKategori", "fonTuru", "kategori"),
         }
         for r in size_rows
@@ -83,14 +83,16 @@ def to_assets(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def fetch_fund_universe(cfg: dict | None = None) -> pd.DataFrame:
-    """TEFAS'tan listeyi çeker (2 istek), evreni seçer, assets biçiminde döndürür."""
+    """TEFAS'tan son iş gününün fon detayını çeker (kod, ünvan, portföy büyüklüğü;
+    sayfalı, birkaç istek), evreni seçer, assets biçiminde döndürür."""
     import tefasmak as tf
 
     cfg = (cfg or load_config())["fund_universe"]
     fund_type = cfg.get("fund_type", "YAT")
-    fund_rows = tf.tum_fonlar(fund_type)
-    size_rows = tf.fonlar_buyukluk(fon_tipi=fund_type)
-    df = rows_to_frame(list(fund_rows), list(size_rows))
+    rows = list(tf.fonlar_gunluk_detay_hepsi(fon_tipi=fund_type))
+    if not rows:
+        raise RuntimeError("TEFAS boş liste döndürdü (hız sınırı ya da uç nokta değişikliği olabilir)")
+    df = rows_to_frame(rows, rows)
     chosen = select_universe(df, cfg.get("top_n_by_size", 300), cfg.get("extra_codes", []))
     return to_assets(chosen).assign(size=chosen["size"].values)
 
