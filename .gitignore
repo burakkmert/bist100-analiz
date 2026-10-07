@@ -16,7 +16,7 @@ data/raw/
 data/processed/
 *.parquet
 *.csv
-!data/bist100_symbols.csv
+!data/bist_stocks.csv
 ml/checkpoints/
 data/cache/
 *.safetensors
