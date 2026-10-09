@@ -35,7 +35,10 @@ def run_timesfm(series: np.ndarray, max_h: int, device: str) -> np.ndarray:
     import torch
 
     torch.set_float32_matmul_precision("high")
-    model = timesfm.TimesFM_2p5_200M_torch.from_pretrained("google/timesfm-2.5-200m-pytorch")
+    model = timesfm.TimesFM_2p5_200M_torch.from_pretrained(
+        "google/timesfm-2.5-200m-pytorch",
+        torch_compile=False,  # Windows'ta torch.compile Triton ister; kapalı tutuyoruz
+    )
     model.compile(timesfm.ForecastConfig(
         max_context=1024, max_horizon=128, normalize_inputs=True,
         use_continuous_quantile_head=True, force_flip_invariance=True,
