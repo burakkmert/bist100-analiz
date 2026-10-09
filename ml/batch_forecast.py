@@ -61,8 +61,13 @@ def load_universe_codes(codes: list[str] | None = None) -> pd.DataFrame:
     return uni.reset_index(drop=True)
 
 
-def load_series(codes: list[str], min_history: int, reader=read_cache) -> tuple[dict[str, np.ndarray], dict[str, str]]:
-    """Dönüş: ({kod: fiyat dizisi}, {kod: atlanma nedeni})."""
+def load_series(codes: list[str], min_history: int, reader=read_cache,
+                types: dict[str, str] | None = None) -> tuple[dict[str, np.ndarray], dict[str, str]]:
+    """Dönüş: ({kod: fiyat dizisi}, {kod: atlanma nedeni}).
+    İmkânsız sıçramalar (bedelsiz, TEFAS kayıt hatası) okuma anında düzeltilir."""
+    from data.cleaning import adjust_jumps
+
+    types = types or {}
     series, skipped = {}, {}
     for code in codes:
         df = reader(code)
@@ -70,6 +75,8 @@ def load_series(codes: list[str], min_history: int, reader=read_cache) -> tuple[
             skipped[code] = "veri yok"
             continue
         df = df.sort_values("date")
+        df = df[df["close"] > 0]
+        df = adjust_jumps(df, "stock" if types.get(code) == "stock" else "fund")
         px = df["adj_close"].fillna(df["close"]) if "adj_close" in df else df["close"]
         px = px.to_numpy(dtype="float64")
         px = px[np.isfinite(px) & (px > 0)]
@@ -179,7 +186,8 @@ def main(argv: list[str] | None = None) -> int:
     universe = load_universe_codes(args.codes)
     codes = universe["code"].tolist()[: args.limit] if args.limit else universe["code"].tolist()
 
-    series, skipped = load_series(codes, cfg.get("min_history", 120))
+    types = dict(zip(universe["code"], universe["type"]))
+    series, skipped = load_series(codes, cfg.get("min_history", 120), types=types)
     print(f"Evren: {len(codes)} varlık | tahmin edilecek: {len(series)} | atlanan: {len(skipped)}")
     if not series:
         print("Tahmin edilecek seri yok. Önce: python -m data.run_daily", file=sys.stderr)

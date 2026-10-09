@@ -3,8 +3,10 @@
 Kurallar:
 - Sıfır/negatif kapanış      → satır silinir, sorun olarak raporlanır.
 - Aynı gün iki kayıt         → son kayıt kalır.
-- Tek günlük ±%40 üstü sıçrama → SİLİNMEZ, işaretlenir. (Bedelsiz/bölünme sonrası
-  düzeltilmemiş veri olabilir ya da gerçek bir hareket; karar insanın.)
+- İmkânsız günlük sıçrama    → işaretlenir; `adjust_jumps` ile okuma anında düzeltilir.
+    Hisse: |getiri| > %12 (BIST günlük fiyat marjı ±%10; bedelsiz/bölünme işlenmemiş demektir)
+    Fon:   |getiri| > %40 (TEFAS kayıt hatası veya birim fiyat yeniden ayarı)
+    Hissede iki kayıt arası 5 günden uzunsa (işlem durdurma vb.) fon eşiği kullanılır.
 - Eksik iş günü               → piyasa takvimine göre (tüm varlıkların işlem gördüğü
   günlerin birleşimi) eksik günler raporlanır; doldurulmaz.
 
@@ -14,7 +16,9 @@ from __future__ import annotations
 
 import pandas as pd
 
-MAX_DAILY_JUMP = 0.40
+MAX_DAILY_JUMP = 0.40          # fonlar ve uzun boşluklar için
+STOCK_MAX_JUMP = 0.12          # BIST ±%10 marjı + yuvarlama payı
+MAX_GAP_DAYS = 5
 ISSUE_COLUMNS = ["code", "date", "issue", "value"]
 
 
@@ -24,7 +28,46 @@ def price_series(df: pd.DataFrame) -> pd.Series:
     return adj.fillna(df["close"]) if adj is not None else df["close"]
 
 
-def clean_prices(df: pd.DataFrame, max_jump: float = MAX_DAILY_JUMP) -> tuple[pd.DataFrame, pd.DataFrame]:
+def implausible_jumps(df: pd.DataFrame, asset_type: str = "fund") -> pd.Series:
+    """Her satır için: önceki güne göre getiri imkânsız büyüklükte mi? (ilk satır False)
+    df tarih sıralı ve temiz olmalı."""
+    ret = price_series(df).pct_change()
+    if asset_type == "stock":
+        gap = pd.to_datetime(pd.Series(df["date"])).diff().dt.days.fillna(1).to_numpy()
+        limit = pd.Series([STOCK_MAX_JUMP if g <= MAX_GAP_DAYS else MAX_DAILY_JUMP for g in gap],
+                          index=df.index)
+    else:
+        limit = MAX_DAILY_JUMP
+    return (ret.abs() > limit).fillna(False)
+
+
+def adjust_jumps(df: pd.DataFrame, asset_type: str = "fund") -> pd.DataFrame:
+    """İmkânsız sıçramaları düzeltir: o günün getirisi 0 sayılır, öncesindeki tüm fiyatlar
+    sıçrama oranıyla ölçeklenir. Bedelsiz/bölünmede bu tam olarak geriye dönük düzeltmedir;
+    gidip gelen hatalı kayıtlarda iki ölçek birbirini götürür.
+
+    Yalnızca `adj_close` değişir (close ham kalır). Önbelleğe YAZILMAZ: her okumada yeniden
+    hesaplanır, böylece yeniden çekilen ham günlerle sahte sıçrama oluşmaz."""
+    import numpy as np
+
+    if df.empty or len(df) < 2:
+        return df
+    df = df.sort_values("date").reset_index(drop=True)
+    jumps = implausible_jumps(df, asset_type).to_numpy()
+    if not jumps.any():
+        return df
+    px = price_series(df).to_numpy(dtype="float64")
+    log_r = np.zeros(len(px))
+    log_r[jumps] = np.log(px[jumps] / px[np.flatnonzero(jumps) - 1])
+    # j gününden SONRAKİ tüm sıçramaların toplam oranı
+    after = np.concatenate([np.cumsum(log_r[::-1])[::-1][1:], [0.0]])
+    out = df.copy()
+    out["adj_close"] = px * np.exp(after)
+    return out
+
+
+def clean_prices(df: pd.DataFrame, max_jump: float | None = None,
+                 asset_type: str = "fund") -> tuple[pd.DataFrame, pd.DataFrame]:
     """Tek varlığın fiyat tablosunu temizler. Dönüş: (temiz tablo, sorunlar tablosu)."""
     issues = []
     if df.empty:
@@ -38,7 +81,8 @@ def clean_prices(df: pd.DataFrame, max_jump: float = MAX_DAILY_JUMP) -> tuple[pd
     df = df[~bad].reset_index(drop=True)
 
     ret = price_series(df).pct_change()
-    for i in ret.index[ret.abs() > max_jump]:
+    flags = (ret.abs() > max_jump).fillna(False) if max_jump is not None else implausible_jumps(df, asset_type)
+    for i in ret.index[flags]:
         issues.append({"code": df.at[i, "code"], "date": df.at[i, "date"],
                        "issue": "jump", "value": round(float(ret[i]), 4)})
 

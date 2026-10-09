@@ -36,7 +36,7 @@ def validate_assets(frames: dict[str, pd.DataFrame], asset_types: dict[str, str]
     asset_types = asset_types or {}
     cleaned, all_issues = {}, []
     for code, df in frames.items():
-        cleaned[code], issues = clean_prices(df)
+        cleaned[code], issues = clean_prices(df, asset_type=asset_types.get(code, "stock"))
         all_issues.append(issues)
 
     calendars = {}
