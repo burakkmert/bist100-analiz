@@ -19,6 +19,7 @@ data/processed/
 !data/bist_stocks.csv
 ml/checkpoints/
 data/cache/
+ml/cache/
 *.safetensors
 *.bin
 *.pt

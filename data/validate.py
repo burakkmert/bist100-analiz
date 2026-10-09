@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from data.cleaning import clean_prices, market_calendar, missing_days
+from data.cleaning import clean_prices, market_calendar, market_event_dates, missing_days
 
 MIN_HISTORY_DAYS = 120
 REPORT_DIR = Path(__file__).resolve().parent / "cache" / "reports"
@@ -34,9 +34,16 @@ def validate_assets(frames: dict[str, pd.DataFrame], asset_types: dict[str, str]
 
     Hisse ve fon takvimleri ayrı hesaplanır (fonlar bazı günler hisselerden farklı işler)."""
     asset_types = asset_types or {}
+    # Hisse takvimi sıçrama eşiği için gerekir (eksik veri gününde eşik genişler)
+    stock_frames = [f for c, f in frames.items() if asset_types.get(c, "stock") == "stock" and not f.empty]
+    stock_cal = market_calendar(stock_frames)
+    events = market_event_dates(stock_frames, stock_cal)
     cleaned, all_issues = {}, []
     for code, df in frames.items():
-        cleaned[code], issues = clean_prices(df)
+        kind = asset_types.get(code, "stock")
+        cleaned[code], issues = clean_prices(df, asset_type=kind,
+                                             calendar=stock_cal if kind == "stock" else None,
+                                             market_events=events if kind == "stock" else None)
         all_issues.append(issues)
 
     calendars = {}

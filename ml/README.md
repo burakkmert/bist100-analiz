@@ -23,10 +23,13 @@ Model ağırlıkları repoya girmez; Hugging Face önbelleğinden yüklenir.
 | `models/timesfm_model.py` | TimesFM 2.5 sarmalayıcı (batch, GPU) |
 | `models/chronos_model.py` | Chronos-2 sarmalayıcı (batch, GPU) |
 | `models/registry.py` | `build_models(["timesfm", ...])` — config'ten model oluşturur |
+| `batch_forecast.py` | **Gece giriş noktası (20:00):** tüm evren × tüm modeller → `forecasts` biçimi (120 günde p50 = NULL), `--db` upsert |
 | `smoke_test.py` | Tüm modelleri tek varlıkta yan yana çalıştırır |
 
 ```bash
 python -m ml.smoke_test --code THYAO
+python -m ml.batch_forecast --codes THYAO GARAN IPB   # hızlı deneme
+python -m ml.batch_forecast                           # tam gece işi
 pytest ml/tests -q
 ```
 

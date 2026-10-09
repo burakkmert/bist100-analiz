@@ -28,6 +28,7 @@ from data.collectors import bist_prices, tefas_prices
 from data.collectors.bist_list import load_stock_list
 from data.collectors.bist_prices import INDEX_CODE, read_cache, write_cache
 from data.collectors.tefas_list import FUNDS_CSV, fetch_fund_universe, load_fund_list
+from data.cleaning import adjust_jumps, market_calendar, market_event_dates
 from data.validate import build_report, validate_assets, write_report
 
 
@@ -112,11 +113,20 @@ def main(argv: list[str] | None = None) -> int:
         ok = summary.set_index("code")["min_history_ok"]
         assets = universe.assign(min_history_ok=universe["code"].map(ok).fillna(False))
         print(f"assets: {upsert_assets_db(assets, url)} satır")
-        prices = pd.concat([df for df in cleaned.values() if not df.empty], ignore_index=True)
+        stock_frames = [df for c, df in cleaned.items() if types.get(c) == "stock"]
+        stock_cal = market_calendar(stock_frames)
+        events = market_event_dates(stock_frames, stock_cal)
+        adjusted = [adjust_jumps(df, types.get(c, "stock"),
+                                 stock_cal if types.get(c) == "stock" else None,
+                                 events if types.get(c) == "stock" else None)
+                    for c, df in cleaned.items() if not df.empty]
+        prices = pd.concat(adjusted, ignore_index=True)  # adj_close: bedelsiz/hata düzeltilmiş
         print(f"prices: {bist_prices.upsert_prices_db(prices, url)} satır")
 
-    print(json.dumps({k: v for k, v in report.items() if not isinstance(v, list) or len(v) <= 10},
-                     ensure_ascii=False, indent=2, default=str))
+    # Uzun listeler ekranda kısaltılır; tamamı JSON dosyasında
+    shown = {k: (v if not isinstance(v, list) or len(v) <= 10 else f"{len(v)} varlık: {', '.join(v[:10])} ...")
+             for k, v in report.items()}
+    print(json.dumps(shown, ensure_ascii=False, indent=2, default=str))
     print(f"Rapor: {path}")
 
     error_rate = len(errors) / max(1, len(universe))

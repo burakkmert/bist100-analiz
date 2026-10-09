@@ -118,3 +118,13 @@ def test_chronos_wrapper_shapes():
     check_output(df, list(series))
     row = df[(df.code == "IPB") & (df.horizon == 120)].iloc[0]
     assert np.isclose(row.p10, series["IPB"][-1] * 0.95, rtol=1e-5)
+
+
+def test_naive_drift_follows_trend():
+    from ml.models.baselines import NaiveDriftForecaster
+
+    s = (100 * np.exp(0.001 * np.arange(400))).astype("float32")   # para piyasası fonu gibi
+    df = NaiveDriftForecaster().predict({"PPF": s}, HORIZONS)
+    p50 = df.set_index("horizon")["p50"]
+    assert np.isclose(p50[120], s[-1] * np.exp(0.12), rtol=1e-3)
+    assert (np.diff(p50.to_numpy()) > 0).all()
