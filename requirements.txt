@@ -22,7 +22,10 @@ pydantic>=2.6
 # Göstergeler ve baseline'lar
 statsmodels>=0.14
 
-# Modeller (Kişi 1 test ortamındaki sürümlerle sabitleyecek)
-# torch
-# timesfm
-# chronos-forecasting
+# Modeller (Kişi 1)
+# GPU için torch ÖNCE ayrıca kurulmalı:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu128
+# (CPU için: pip install torch)
+torch>=2.6,<3
+timesfm[torch]>=3.0.2,<4          # TimesFM_2p5_200M_torch sınıfını içerir
+chronos-forecasting>=2.3.2,<3     # Chronos2Pipeline
