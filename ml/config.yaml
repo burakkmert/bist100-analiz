@@ -1,0 +1,21 @@
+# ml/ ayarları (Kişi 1)
+
+horizons: [1, 5, 20, 30, 120]   # gün; 120'de p50 veritabanına YAZILMAZ (yalnızca senaryo bandı)
+context_length: 512             # modele verilen geçmiş gün sayısı (Görev 7'de 90/120/256/512 denenecek)
+min_history: 120                # bundan kısa serilere tahmin üretilmez
+device: auto                    # auto | cuda | cpu
+
+models:
+  timesfm:
+    repo: google/timesfm-2.5-200m-pytorch
+    batch_size: 64
+  chronos:
+    repo: amazon/chronos-2
+    batch_size: 128
+  naive: {}
+  moving_average:
+    window: 20
+  arima:
+    order: [1, 1, 1]
+
+baseline_spread_window: 500     # naive/MA aralıkları için geçmiş getiri penceresi (gün)

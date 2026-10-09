@@ -12,3 +12,22 @@ class Forecaster:
 ```
 
 Model ağırlıkları repoya girmez; Hugging Face önbelleğinden yüklenir.
+
+## Dosyalar
+
+| Dosya | Görev |
+| --- | --- |
+| `config.yaml` | Ufuklar, context uzunluğu, batch boyutları, cihaz |
+| `models/base.py` | `Forecaster` arayüzü, seri temizleme, kantil sırası düzeltme |
+| `models/baselines.py` | Naive, hareketli ortalama, ARIMA (kıyas modelleri) |
+| `models/timesfm_model.py` | TimesFM 2.5 sarmalayıcı (batch, GPU) |
+| `models/chronos_model.py` | Chronos-2 sarmalayıcı (batch, GPU) |
+| `models/registry.py` | `build_models(["timesfm", ...])` — config'ten model oluşturur |
+| `smoke_test.py` | Tüm modelleri tek varlıkta yan yana çalıştırır |
+
+```bash
+python -m ml.smoke_test --code THYAO
+pytest ml/tests -q
+```
+
+Windows notu: TimesFM `torch_compile=False` ile yüklenir (torch.compile Triton ister).
