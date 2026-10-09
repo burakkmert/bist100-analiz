@@ -74,3 +74,16 @@ def test_naive_mase_is_exactly_one():
                               min_context=120, context_length=512, log=lambda *a: None)
     table = summarize_by(res, ["model", "horizon"])
     assert np.allclose(table["mase"], 1.0)
+
+
+def test_origins_are_aligned_across_assets():
+    # B'nin bazı günleri eksik: tahmin günleri yine de ortak tarihlerde olmalı
+    a = frame(400, seed=1)
+    b = frame(400, seed=2).drop(index=[350, 351, 352, 371]).reset_index(drop=True)
+    frames = {"A": a, "B": b}
+    res, _ = run_walk_forward(frames, [NaiveForecaster()], [1], test_days=100, step=5,
+                              min_context=120, context_length=512, log=lambda *a: None)
+    days_a = set(res[res.code == "A"]["origin_date"])
+    days_b = set(res[res.code == "B"]["origin_date"])
+    assert days_b <= days_a                       # B'nin her tahmin günü A'da da var
+    assert len(days_a) == 20                      # 100 gün / 5

@@ -1,6 +1,9 @@
 """Walk-forward backtest (Görev 6).
 
-Her varlık için son `test_days` işlem günü içinde her `step` günde bir "tahmin günü" (t) seçilir.
+Tahmin günleri ORTAK takvimden seçilir (varlıkların çoğunun işlem gördüğü günler): son
+`test_days` takvim günü içinde her `step` günde bir. Böylece her tahmin gününde tüm varlıklar
+birlikte değerlendirilir (kesitsel kıyas, Diebold–Mariano'nun eşit aralık varsayımı).
+O gün verisi olmayan varlık o tahmin gününde atlanır.
 Model YALNIZCA t gününe kadarki veriyi görür (seri[:t+1]); tahmin, t+h günündeki gerçek fiyatla
 karşılaştırılır. Model hiçbir zaman geleceği görmez.
 
@@ -34,13 +37,31 @@ def origin_indices(n: int, test_days: int, step: int, min_context: int, min_h: i
     return list(range(last, first - 1, -step))[::-1]
 
 
+def common_origin_dates(frames: dict[str, pd.DataFrame], test_days: int, step: int,
+                        min_share: float = 0.5, min_h: int = 1) -> list:
+    """Ortak takvimden tahmin günleri: varlıkların en az yarısının işlem gördüğü günler,
+    son `test_days` gün içinde, en yeni günden geriye `step` aralıkla."""
+    from data.cleaning import market_calendar
+
+    cal = market_calendar([f[["date"]] for f in frames.values()], min_share=min_share)
+    if len(cal) <= min_h:
+        return []
+    idx = origin_indices(len(cal), test_days, step, min_context=1, min_h=min_h)
+    return [cal[i] for i in idx]
+
+
 def build_contexts(frames: dict[str, pd.DataFrame], test_days: int, step: int, min_context: int,
                    context_length: int) -> tuple[dict[str, np.ndarray], list[tuple[str, int]]]:
-    """Dönüş: ({"KOD|t": bağlam dizisi}, [(kod, t), ...])."""
+    """Dönüş: ({"KOD|t": bağlam dizisi}, [(kod, t), ...]). t: varlığın kendi satır dizini."""
     contexts, keys = {}, []
+    origins = common_origin_dates(frames, test_days, step)
     for code, df in frames.items():
         px = df["price"].to_numpy(dtype="float64")
-        for t in origin_indices(len(px), test_days, step, min_context):
+        pos = {d: i for i, d in enumerate(df["date"])}
+        for day in origins:
+            t = pos.get(day)
+            if t is None or t + 1 < min_context or t >= len(px) - 1:
+                continue
             contexts[f"{code}|{t}"] = px[max(0, t + 1 - context_length): t + 1]
             keys.append((code, t))
     return contexts, keys
