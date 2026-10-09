@@ -117,8 +117,10 @@ def main(argv: list[str] | None = None) -> int:
         prices = pd.concat(adjusted, ignore_index=True)  # adj_close: bedelsiz/hata düzeltilmiş
         print(f"prices: {bist_prices.upsert_prices_db(prices, url)} satır")
 
-    print(json.dumps({k: v for k, v in report.items() if not isinstance(v, list) or len(v) <= 10},
-                     ensure_ascii=False, indent=2, default=str))
+    # Uzun listeler ekranda kısaltılır; tamamı JSON dosyasında
+    shown = {k: (v if not isinstance(v, list) or len(v) <= 10 else f"{len(v)} varlık: {', '.join(v[:10])} ...")
+             for k, v in report.items()}
+    print(json.dumps(shown, ensure_ascii=False, indent=2, default=str))
     print(f"Rapor: {path}")
 
     error_rate = len(errors) / max(1, len(universe))
