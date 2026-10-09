@@ -107,6 +107,12 @@ def report(raw: pd.DataFrame, settings: dict, stats: list, tag: str, save_raw: b
     print(by_mh.pivot(index="model", columns="horizon", values="coverage").round(3).to_string())
     print("\n== Yön p-değerleri")
     print(by_mh.pivot(index="model", columns="horizon", values="dir_pvalue").round(3).to_string())
+    for kind, g in by_tmh.groupby("type"):
+        print(f"\n######## {kind.upper()} ({raw.loc[raw['type'] == kind, 'code'].nunique()} varlık)")
+        for metric, title in [("mase", "MASE"), ("dir_acc", "Yön doğruluğu"),
+                              ("dir_pvalue", "Yön p-değeri"), ("coverage", "Kapsama")]:
+            print(f"-- {title}")
+            print(g.pivot(index="model", columns="horizon", values=metric).round(3).to_string())
     print(f"\nTablolar: {REPORT_DIR}  |  Süre: {summary['duration_s']} sn")
 
 
