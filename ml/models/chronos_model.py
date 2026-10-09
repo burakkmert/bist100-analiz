@@ -25,11 +25,10 @@ class ChronosForecaster(Forecaster):
     def _load(self):
         if self._pipe is not None:
             return self._pipe
-        import torch
         from chronos import Chronos2Pipeline
 
-        self._pipe = Chronos2Pipeline.from_pretrained(
-            self.repo, device_map=self.device, torch_dtype=torch.float32)
+        # dtype verilmiyor: varsayılan float32 (torch_dtype parametresi kullanımdan kalktı)
+        self._pipe = Chronos2Pipeline.from_pretrained(self.repo, device_map=self.device)
         return self._pipe
 
     def _predict(self, series, horizons):
