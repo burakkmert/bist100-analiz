@@ -13,6 +13,8 @@ models:
     repo: amazon/chronos-2
     batch_size: 128
   naive: {}
+  naive_drift:
+    window: 250                 # trend için son ~1 yılın ortalama günlük getirisi
   moving_average:
     window: 20
   arima:

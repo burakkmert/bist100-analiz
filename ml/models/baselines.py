@@ -57,6 +57,22 @@ class NaiveForecaster(_CenterSpreadForecaster):
         return float(prices[-1])
 
 
+class NaiveDriftForecaster(_CenterSpreadForecaster):
+    """Trendli naive: son fiyat × exp(ortalama günlük log-getiri × h).
+    Para piyasası/borçlanma fonları gibi sürekli faiz işleten serilerde adil kıyas budur."""
+
+    name = "naive_drift"
+
+    def __init__(self, drift_window: int = 250, spread_window: int = 500):
+        super().__init__(spread_window)
+        self.drift_window = drift_window
+
+    def center(self, prices, h):
+        logp = np.log(prices[-(self.drift_window + 1):].astype("float64"))
+        mu = (logp[-1] - logp[0]) / (len(logp) - 1) if len(logp) > 1 else 0.0
+        return float(prices[-1] * np.exp(mu * h))
+
+
 class MovingAverageForecaster(_CenterSpreadForecaster):
     """Merkez = son `window` günün ortalaması."""
 
