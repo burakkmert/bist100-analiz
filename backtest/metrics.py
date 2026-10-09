@@ -40,11 +40,19 @@ def mase(y, f, y0) -> float:
     return mae(y, f) / naive if naive > 0 else float("nan")
 
 
+FLAT_TOL = 1e-6  # |f - y0| / y0 bundan küçükse "yatay" (float32 yuvarlaması yön sayılmasın)
+
+
+def _sign(x, ref, tol=FLAT_TOL) -> np.ndarray:
+    d = (x - ref) / np.abs(ref)
+    return np.where(np.abs(d) <= tol, 0, np.sign(d))
+
+
 def direction_hits(y, f, y0) -> tuple[int, int]:
     """(doğru yön sayısı, değerlendirilen tahmin sayısı). Yatay tahminler ve yatay
     gerçekleşmeler dışarıda bırakılır."""
     y, f, y0 = _arr(y), _arr(f), _arr(y0)
-    pred, real = np.sign(f - y0), np.sign(y - y0)
+    pred, real = _sign(f, y0), _sign(y, y0)
     mask = (pred != 0) & (real != 0)
     return int((pred[mask] == real[mask]).sum()), int(mask.sum())
 

@@ -68,3 +68,9 @@ def test_summarize_handles_missing_p50_for_120():
     s = summarize(df)
     assert s["n"] == 0 and math.isnan(s["mae"])   # nokta metriği yok
     assert s["coverage"] == 1.0                   # bant metriği var
+
+
+def test_float32_rounding_is_flat_not_direction():
+    y0 = np.array([287.5, 100.0])
+    f = y0.astype("float32").astype("float64") * (1 - 1e-8)   # naive, yuvarlama farkıyla
+    assert direction_hits([290.0, 99.0], f, y0) == (0, 0)

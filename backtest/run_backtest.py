@@ -45,7 +45,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--test-days", type=int, default=504, help="Son kaç işlem günü test edilir (~2 yıl)")
     p.add_argument("--step", type=int, default=5, help="Kaç günde bir tahmin günü (5 = haftalık)")
     p.add_argument("--context", type=int, help="Bağlam uzunluğu (varsayılan config)")
+    p.add_argument("--from-raw", help="Modelleri çalıştırma; kayıtlı raw_<tarih>.parquet'ten metrikleri yeniden hesapla")
     args = p.parse_args(argv)
+
+    if args.from_raw:
+        raw = pd.read_parquet(args.from_raw)
+        report(raw, {"source": args.from_raw}, [], tag=Path(args.from_raw).stem.replace("raw_", ""), save_raw=False)
+        return 0
 
     t0 = time.time()
     cfg = load_config()
@@ -66,10 +72,17 @@ def main(argv: list[str] | None = None) -> int:
         print("Değerlendirme üretilemedi.", file=sys.stderr)
         return 1
     raw["type"] = raw["code"].map(types).fillna("unknown")
+    settings = {"test_days": args.test_days, "step": args.step, "context_length": cfg["context_length"],
+                "horizons": cfg["horizons"], "assets": len(frames), "skipped": len(skipped)}
+    report(raw, settings, stats, tag=date.today().isoformat(), started=t0)
+    return 0
 
-    tag = date.today().isoformat()
+
+def report(raw: pd.DataFrame, settings: dict, stats: list, tag: str, save_raw: bool = True,
+           started: float | None = None) -> None:
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    raw.to_parquet(REPORT_DIR / f"raw_{tag}.parquet", index=False)
+    if save_raw:
+        raw.to_parquet(REPORT_DIR / f"raw_{tag}.parquet", index=False)
     by_mh = summarize_by(raw, ["model", "horizon"])
     by_tmh = summarize_by(raw, ["type", "model", "horizon"])
     by_mh.to_csv(REPORT_DIR / f"by_model_horizon_{tag}.csv", index=False)
@@ -77,12 +90,10 @@ def main(argv: list[str] | None = None) -> int:
 
     summary = {
         "run_date": tag,
-        "settings": {"test_days": args.test_days, "step": args.step,
-                     "context_length": cfg["context_length"], "horizons": cfg["horizons"]},
-        "assets": len(frames), "skipped": len(skipped),
+        "settings": settings,
         "models": stats,
         "by_model_horizon": by_mh.round(4).to_dict("records"),
-        "duration_s": round(time.time() - t0, 1),
+        "duration_s": round(time.time() - started, 1) if started else None,
     }
     (REPORT_DIR / f"summary_{tag}.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
@@ -94,8 +105,9 @@ def main(argv: list[str] | None = None) -> int:
     print(by_mh.pivot(index="model", columns="horizon", values="dir_acc").round(3).to_string())
     print("\n== Kapsama (%80 aralık; ideal ≈ 0.80)")
     print(by_mh.pivot(index="model", columns="horizon", values="coverage").round(3).to_string())
+    print("\n== Yön p-değerleri")
+    print(by_mh.pivot(index="model", columns="horizon", values="dir_pvalue").round(3).to_string())
     print(f"\nTablolar: {REPORT_DIR}  |  Süre: {summary['duration_s']} sn")
-    return 0
 
 
 if __name__ == "__main__":
