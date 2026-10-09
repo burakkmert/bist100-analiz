@@ -61,10 +61,11 @@ def load_universe_codes(codes: list[str] | None = None) -> pd.DataFrame:
     return uni.reset_index(drop=True)
 
 
-def load_series(codes: list[str], min_history: int, reader=read_cache,
-                types: dict[str, str] | None = None) -> tuple[dict[str, np.ndarray], dict[str, str]]:
-    """Dönüş: ({kod: fiyat dizisi}, {kod: atlanma nedeni}).
-    İmkânsız sıçramalar (bedelsiz, TEFAS kayıt hatası) okuma anında düzeltilir."""
+def load_price_frames(codes: list[str], min_history: int, reader=read_cache,
+                      types: dict[str, str] | None = None) -> tuple[dict[str, pd.DataFrame], dict[str, str]]:
+    """Dönüş: ({kod: DataFrame[date, price]}, {kod: atlanma nedeni}).
+    İmkânsız sıçramalar (bedelsiz, TEFAS kayıt hatası) okuma anında düzeltilir;
+    piyasa geneli hareketler (ör. deprem sonrası açılış) korunur."""
     from data.cleaning import adjust_jumps, market_calendar, market_event_dates
 
     types = types or {}
@@ -80,19 +81,26 @@ def load_series(codes: list[str], min_history: int, reader=read_cache,
     stock_frames = [f for c, f in frames.items() if types.get(c) == "stock"]
     stock_cal = market_calendar(stock_frames)
     events = market_event_dates(stock_frames, stock_cal)
-    series = {}
+    out = {}
     for code, df in frames.items():
         kind = "stock" if types.get(code) == "stock" else "fund"
         df = adjust_jumps(df, kind, stock_cal if kind == "stock" else None,
                           events if kind == "stock" else None)
         px = df["adj_close"].fillna(df["close"]) if "adj_close" in df else df["close"]
-        px = px.to_numpy(dtype="float64")
-        px = px[np.isfinite(px) & (px > 0)]
-        if len(px) < min_history:
-            skipped[code] = f"kısa geçmiş ({len(px)} < {min_history})"
+        clean = pd.DataFrame({"date": df["date"].to_numpy(), "price": px.to_numpy(dtype="float64")})
+        clean = clean[np.isfinite(clean["price"]) & (clean["price"] > 0)].reset_index(drop=True)
+        if len(clean) < min_history:
+            skipped[code] = f"kısa geçmiş ({len(clean)} < {min_history})"
             continue
-        series[code] = px
-    return series, skipped
+        out[code] = clean
+    return out, skipped
+
+
+def load_series(codes: list[str], min_history: int, reader=read_cache,
+                types: dict[str, str] | None = None) -> tuple[dict[str, np.ndarray], dict[str, str]]:
+    """Dönüş: ({kod: fiyat dizisi}, {kod: atlanma nedeni})."""
+    frames, skipped = load_price_frames(codes, min_history, reader, types)
+    return {c: f["price"].to_numpy() for c, f in frames.items()}, skipped
 
 
 # ---------------------------------------------------------------- tahmin
