@@ -21,6 +21,7 @@ pydantic>=2.6
 
 # Göstergeler ve baseline'lar
 statsmodels>=0.14
+scipy>=1.11                       # backtest: binom testi
 
 # Modeller (Kişi 1)
 # GPU için torch ÖNCE ayrıca kurulmalı:
