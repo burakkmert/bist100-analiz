@@ -77,3 +77,17 @@ def test_missing_session_widens_stock_limit():
     df_full = pd.DataFrame({"code": "VAKBN", "date": cal[1:3],
                             "close": [10.1, 11.88], "adj_close": [10.1, 11.88]})
     assert implausible_jumps(df_full, "stock", calendar=cal).iloc[1]
+
+
+def test_market_wide_move_is_not_adjusted_but_single_stock_is():
+    # 15 Şubat 2023 vakası: 20 hissenin hepsi aynı gün +%20 -> piyasa olayı
+    from data.cleaning import market_event_dates
+
+    frames = [frame([100, 101, 121.2, 122]) for _ in range(20)]
+    bonus = frame([100, 101, 50.5, 51])              # tek hisse -%50 -> bedelsiz
+    frames.append(bonus)
+    events = market_event_dates(frames)
+    assert len(events) == 1 and list(events)[0][1] == 1
+    same_day = frames[0]
+    assert not implausible_jumps(same_day, "stock", market_events=events).any()
+    assert implausible_jumps(bonus, "stock", market_events=events).iloc[2]

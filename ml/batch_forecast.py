@@ -65,7 +65,7 @@ def load_series(codes: list[str], min_history: int, reader=read_cache,
                 types: dict[str, str] | None = None) -> tuple[dict[str, np.ndarray], dict[str, str]]:
     """Dönüş: ({kod: fiyat dizisi}, {kod: atlanma nedeni}).
     İmkânsız sıçramalar (bedelsiz, TEFAS kayıt hatası) okuma anında düzeltilir."""
-    from data.cleaning import adjust_jumps, market_calendar
+    from data.cleaning import adjust_jumps, market_calendar, market_event_dates
 
     types = types or {}
     frames, skipped = {}, {}
@@ -77,11 +77,14 @@ def load_series(codes: list[str], min_history: int, reader=read_cache,
         df = df[df["close"] > 0].sort_values("date").drop_duplicates("date", keep="last")
         frames[code] = df
 
-    stock_cal = market_calendar([f for c, f in frames.items() if types.get(c) == "stock"])
+    stock_frames = [f for c, f in frames.items() if types.get(c) == "stock"]
+    stock_cal = market_calendar(stock_frames)
+    events = market_event_dates(stock_frames, stock_cal)
     series = {}
     for code, df in frames.items():
         kind = "stock" if types.get(code) == "stock" else "fund"
-        df = adjust_jumps(df, kind, stock_cal if kind == "stock" else None)
+        df = adjust_jumps(df, kind, stock_cal if kind == "stock" else None,
+                          events if kind == "stock" else None)
         px = df["adj_close"].fillna(df["close"]) if "adj_close" in df else df["close"]
         px = px.to_numpy(dtype="float64")
         px = px[np.isfinite(px) & (px > 0)]

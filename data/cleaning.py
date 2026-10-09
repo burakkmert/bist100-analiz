@@ -8,6 +8,9 @@ Kurallar:
            (BIST günlük fiyat marjı ±%10). 1 seans: %12, 2 seans: %23 ... Eksik veri günü
            gerçek bir çok günlük hareketi "imkânsız" göstermez. Seans sayısı piyasa takviminden
            (diğer hisselerin işlem günleri) alınır; takvim yoksa iş günü sayılır.
+           Ancak aynı gün aynı yönde en az 3 hisse (veya hisselerin %5'i) eşiği aşıyorsa bu bir
+           PİYASA OLAYIDIR (ör. 15 Şubat 2023 deprem sonrası yeniden açılış, 19 Aralık 2022 banka
+           rallisi) ve düzeltilmez. Bedelsiz/bölünme tek hisseye özgüdür.
     Fon:   |getiri| > %40 (TEFAS kayıt hatası veya birim fiyat yeniden ayarı)
 - Eksik iş günü               → piyasa takvimine göre (tüm varlıkların işlem gördüğü
   günlerin birleşimi) eksik günler raporlanır; doldurulmaz.
@@ -16,6 +19,7 @@ Hisselerde sıçrama `adj_close` üzerinden ölçülür (bölünme etkisi zaten 
 """
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 MAX_DAILY_JUMP = 0.40          # fonlar ve uzun boşluklar için
@@ -49,19 +53,44 @@ def sessions_between(dates, calendar: list | None = None):
     return np.concatenate([[1], np.maximum(k, 1)])
 
 
-def implausible_jumps(df: pd.DataFrame, asset_type: str = "fund", calendar: list | None = None) -> pd.Series:
+def implausible_jumps(df: pd.DataFrame, asset_type: str = "fund", calendar: list | None = None,
+                      market_events: set | None = None) -> pd.Series:
     """Her satır için: önceki kayda göre getiri imkânsız büyüklükte mi? (ilk satır False)
-    df tarih sıralı ve temiz olmalı."""
+    df tarih sıralı ve temiz olmalı. market_events: {(tarih, yön)} — bu günlerdeki aynı yönlü
+    hareketler piyasa olayıdır, işaretlenmez."""
     ret = price_series(df).pct_change()
     if asset_type == "stock":
         k = sessions_between(df["date"], calendar)
         limit = pd.Series((1 + STOCK_DAILY_LIMIT) ** k - 1 + STOCK_MARGIN, index=df.index)
     else:
         limit = MAX_DAILY_JUMP
-    return (ret.abs() > limit).fillna(False)
+    flags = (ret.abs() > limit).fillna(False)
+    if market_events and flags.any():
+        sign = np.sign(ret.fillna(0)).astype(int)
+        is_event = pd.Series([(d, s) in market_events for d, s in zip(df["date"], sign)], index=df.index)
+        flags &= ~is_event
+    return flags
 
 
-def adjust_jumps(df: pd.DataFrame, asset_type: str = "fund", calendar: list | None = None) -> pd.DataFrame:
+def market_event_dates(frames: list[pd.DataFrame], calendar: list | None = None,
+                       min_count: int = 3, min_share: float = 0.05) -> set:
+    """Aynı gün aynı yönde çok sayıda hissenin eşiği aştığı günler: {(tarih, +1/-1)}."""
+    counts: dict = {}
+    frames = [f for f in frames if f is not None and len(f) > 1]
+    for f in frames:
+        f = f.sort_values("date").reset_index(drop=True)
+        flags = implausible_jumps(f, "stock", calendar)
+        if flags.any():
+            ret = price_series(f).pct_change()
+            for i in flags.index[flags]:
+                key = (f.at[i, "date"], int(np.sign(ret[i])))
+                counts[key] = counts.get(key, 0) + 1
+    need = max(min_count, int(np.ceil(len(frames) * min_share)))
+    return {k for k, v in counts.items() if v >= need}
+
+
+def adjust_jumps(df: pd.DataFrame, asset_type: str = "fund", calendar: list | None = None,
+                 market_events: set | None = None) -> pd.DataFrame:
     """İmkânsız sıçramaları düzeltir: o günün getirisi 0 sayılır, öncesindeki tüm fiyatlar
     sıçrama oranıyla ölçeklenir. Bedelsiz/bölünmede bu tam olarak geriye dönük düzeltmedir;
     gidip gelen hatalı kayıtlarda iki ölçek birbirini götürür.
@@ -73,7 +102,7 @@ def adjust_jumps(df: pd.DataFrame, asset_type: str = "fund", calendar: list | No
     if df.empty or len(df) < 2:
         return df
     df = df.sort_values("date").reset_index(drop=True)
-    jumps = implausible_jumps(df, asset_type, calendar).to_numpy()
+    jumps = implausible_jumps(df, asset_type, calendar, market_events).to_numpy()
     if not jumps.any():
         return df
     px = price_series(df).to_numpy(dtype="float64")
@@ -87,7 +116,7 @@ def adjust_jumps(df: pd.DataFrame, asset_type: str = "fund", calendar: list | No
 
 
 def clean_prices(df: pd.DataFrame, max_jump: float | None = None, asset_type: str = "fund",
-                 calendar: list | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+                 calendar: list | None = None, market_events: set | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Tek varlığın fiyat tablosunu temizler. Dönüş: (temiz tablo, sorunlar tablosu)."""
     issues = []
     if df.empty:
@@ -101,7 +130,7 @@ def clean_prices(df: pd.DataFrame, max_jump: float | None = None, asset_type: st
     df = df[~bad].reset_index(drop=True)
 
     ret = price_series(df).pct_change()
-    flags = (ret.abs() > max_jump).fillna(False) if max_jump is not None else implausible_jumps(df, asset_type, calendar)
+    flags = (ret.abs() > max_jump).fillna(False) if max_jump is not None else implausible_jumps(df, asset_type, calendar, market_events)
     for i in ret.index[flags]:
         issues.append({"code": df.at[i, "code"], "date": df.at[i, "date"],
                        "issue": "jump", "value": round(float(ret[i]), 4)})
