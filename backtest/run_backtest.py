@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from backtest.metrics import summarize_by
+from backtest.metrics import dm_table, summarize_by
 from backtest.walk_forward import run_walk_forward
 from ml.batch_forecast import load_price_frames, load_universe_codes
 from ml.models.base import load_config
@@ -95,6 +95,12 @@ def report(raw: pd.DataFrame, settings: dict, stats: list, tag: str, save_raw: b
     by_mh = summarize_by(raw, ["model", "horizon"])
     by_tmh = summarize_by(raw, ["type", "model", "horizon"])
     by_mh.to_csv(REPORT_DIR / f"by_model_horizon_{tag}.csv", index=False)
+    present = list(raw["model"].unique())
+    focus = [m for m in ("timesfm", "chronos") if m in present]
+    refs = [r for r in ("naive", "naive_drift") if r in present]
+    step = int(settings.get("step", 5) or 5)
+    dm = dm_table(raw, focus, refs, step=step, by=["type"])
+    dm.to_csv(REPORT_DIR / f"diebold_mariano_{tag}.csv", index=False)
     by_tmh.to_csv(REPORT_DIR / f"by_type_model_horizon_{tag}.csv", index=False)
 
     summary = {
@@ -122,6 +128,13 @@ def report(raw: pd.DataFrame, settings: dict, stats: list, tag: str, save_raw: b
                               ("dir_pvalue", "Yön p-değeri"), ("coverage", "Kapsama")]:
             print(f"-- {title}")
             print(g.pivot(index="model", columns="horizon", values=metric).round(3).to_string())
+    if not dm.empty:
+        print("\n######## DIEBOLD–MARIANO (rel_loss < 1 ve p < 0.05 -> kıyastan anlamlı derecede iyi)")
+        for (kind, ref), g in dm.groupby(["type", "vs"]):
+            print(f"-- {kind.upper()} | kıyas: {ref}")
+            t = g.pivot(index="model", columns="horizon", values="rel_loss").round(3).astype(str) + " (p=" + \
+                g.pivot(index="model", columns="horizon", values="p_value").round(3).astype(str) + ")"
+            print(t.to_string())
     print(f"\nTablolar: {REPORT_DIR}  |  Süre: {summary['duration_s']} sn")
 
 

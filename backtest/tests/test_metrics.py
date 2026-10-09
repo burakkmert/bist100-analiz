@@ -74,3 +74,38 @@ def test_float32_rounding_is_flat_not_direction():
     y0 = np.array([287.5, 100.0])
     f = y0.astype("float32").astype("float64") * (1 - 1e-8)   # naive, yuvarlama farkıyla
     assert direction_hits([290.0, 99.0], f, y0) == (0, 0)
+
+
+def test_mase_is_scale_free():
+    # aynı yüzde hatalar: 1 TL'lik fon ve 300 TL'lik hisse eşit ağırlık
+    y0 = np.array([1.0, 300.0]); y = y0 * 1.10
+    f_good = y0 * 1.05                     # yarı hata
+    assert mase(y, f_good, y0) == pytest.approx(0.5)
+
+
+def test_diebold_mariano_detects_real_difference_and_not_noise():
+    from backtest.metrics import diebold_mariano
+
+    rng = np.random.default_rng(0)
+    base = rng.uniform(0.02, 0.05, 200)
+    stat, p = diebold_mariano(base * 0.8, base, lags=3)       # A her zaman %20 daha iyi
+    assert stat < 0 and p < 0.001
+    noise = base + rng.normal(0, 0.01, 200)
+    _, p2 = diebold_mariano(noise, base + rng.normal(0, 0.01, 200), lags=3)
+    assert p2 > 0.05
+
+
+def test_dm_table_shape():
+    from backtest.metrics import dm_table
+
+    rng = np.random.default_rng(1)
+    dates = pd.bdate_range("2024-01-01", periods=60).date
+    rows = []
+    real = {c: 100.0 * np.exp(rng.normal(0, 0.03, 60)) for c in ["A", "B"]}   # gerçekleşen: modelden bağımsız
+    for m, k in [("timesfm", 0.9), ("naive", 1.0)]:
+        for c in ["A", "B"]:
+            y0 = np.full(60, 100.0); y = real[c]
+            rows.append(pd.DataFrame({"model": m, "code": c, "type": "stock", "origin_date": dates,
+                                      "horizon": 5, "y0": y0, "y": y, "p50": y0 + (y - y0) * (1 - k + 0.0)}))
+    t = dm_table(pd.concat(rows), ["timesfm"], ["naive"], by=["type"])
+    assert len(t) == 1 and t.iloc[0]["rel_loss"] == pytest.approx(0.9, rel=1e-6)
