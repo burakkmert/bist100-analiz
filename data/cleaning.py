@@ -4,9 +4,11 @@ Kurallar:
 - Sıfır/negatif kapanış      → satır silinir, sorun olarak raporlanır.
 - Aynı gün iki kayıt         → son kayıt kalır.
 - İmkânsız günlük sıçrama    → işaretlenir; `adjust_jumps` ile okuma anında düzeltilir.
-    Hisse: |getiri| > %12 (BIST günlük fiyat marjı ±%10; bedelsiz/bölünme işlenmemiş demektir)
+    Hisse: |getiri| > 1,10^k - 1 + %2, k = iki kayıt arasında geçen piyasa seansı sayısı
+           (BIST günlük fiyat marjı ±%10). 1 seans: %12, 2 seans: %23 ... Eksik veri günü
+           gerçek bir çok günlük hareketi "imkânsız" göstermez. Seans sayısı piyasa takviminden
+           (diğer hisselerin işlem günleri) alınır; takvim yoksa iş günü sayılır.
     Fon:   |getiri| > %40 (TEFAS kayıt hatası veya birim fiyat yeniden ayarı)
-    Hissede iki kayıt arası 5 günden uzunsa (işlem durdurma vb.) fon eşiği kullanılır.
 - Eksik iş günü               → piyasa takvimine göre (tüm varlıkların işlem gördüğü
   günlerin birleşimi) eksik günler raporlanır; doldurulmaz.
 
@@ -17,8 +19,8 @@ from __future__ import annotations
 import pandas as pd
 
 MAX_DAILY_JUMP = 0.40          # fonlar ve uzun boşluklar için
-STOCK_MAX_JUMP = 0.12          # BIST ±%10 marjı + yuvarlama payı
-MAX_GAP_DAYS = 5
+STOCK_DAILY_LIMIT = 0.10       # BIST günlük fiyat marjı
+STOCK_MARGIN = 0.02            # yuvarlama / fiyat adımı payı
 ISSUE_COLUMNS = ["code", "date", "issue", "value"]
 
 
@@ -28,20 +30,38 @@ def price_series(df: pd.DataFrame) -> pd.Series:
     return adj.fillna(df["close"]) if adj is not None else df["close"]
 
 
-def implausible_jumps(df: pd.DataFrame, asset_type: str = "fund") -> pd.Series:
-    """Her satır için: önceki güne göre getiri imkânsız büyüklükte mi? (ilk satır False)
+def sessions_between(dates, calendar: list | None = None):
+    """Ardışık kayıtlar arasında geçen seans sayısı (ilk satır 1).
+    Takvim verilirse (önceki, şimdiki] aralığındaki takvim günleri sayılır; yoksa iş günleri."""
+    import numpy as np
+
+    d = pd.to_datetime(pd.Series(list(dates))).dt.date.to_numpy()
+    if len(d) < 2:
+        return np.ones(len(d), dtype=int)
+    if calendar:
+        cal = np.array(sorted(pd.to_datetime(pd.Series(list(calendar))).dt.date), dtype="datetime64[D]")
+        dd = d.astype("datetime64[D]")
+        pos = np.searchsorted(cal, dd, side="right")   # <= tarih olan takvim günü sayısı
+        k = np.diff(pos)
+    else:
+        dd = d.astype("datetime64[D]")
+        k = np.busday_count(dd[:-1], dd[1:])
+    return np.concatenate([[1], np.maximum(k, 1)])
+
+
+def implausible_jumps(df: pd.DataFrame, asset_type: str = "fund", calendar: list | None = None) -> pd.Series:
+    """Her satır için: önceki kayda göre getiri imkânsız büyüklükte mi? (ilk satır False)
     df tarih sıralı ve temiz olmalı."""
     ret = price_series(df).pct_change()
     if asset_type == "stock":
-        gap = pd.to_datetime(pd.Series(df["date"])).diff().dt.days.fillna(1).to_numpy()
-        limit = pd.Series([STOCK_MAX_JUMP if g <= MAX_GAP_DAYS else MAX_DAILY_JUMP for g in gap],
-                          index=df.index)
+        k = sessions_between(df["date"], calendar)
+        limit = pd.Series((1 + STOCK_DAILY_LIMIT) ** k - 1 + STOCK_MARGIN, index=df.index)
     else:
         limit = MAX_DAILY_JUMP
     return (ret.abs() > limit).fillna(False)
 
 
-def adjust_jumps(df: pd.DataFrame, asset_type: str = "fund") -> pd.DataFrame:
+def adjust_jumps(df: pd.DataFrame, asset_type: str = "fund", calendar: list | None = None) -> pd.DataFrame:
     """İmkânsız sıçramaları düzeltir: o günün getirisi 0 sayılır, öncesindeki tüm fiyatlar
     sıçrama oranıyla ölçeklenir. Bedelsiz/bölünmede bu tam olarak geriye dönük düzeltmedir;
     gidip gelen hatalı kayıtlarda iki ölçek birbirini götürür.
@@ -53,7 +73,7 @@ def adjust_jumps(df: pd.DataFrame, asset_type: str = "fund") -> pd.DataFrame:
     if df.empty or len(df) < 2:
         return df
     df = df.sort_values("date").reset_index(drop=True)
-    jumps = implausible_jumps(df, asset_type).to_numpy()
+    jumps = implausible_jumps(df, asset_type, calendar).to_numpy()
     if not jumps.any():
         return df
     px = price_series(df).to_numpy(dtype="float64")
@@ -66,8 +86,8 @@ def adjust_jumps(df: pd.DataFrame, asset_type: str = "fund") -> pd.DataFrame:
     return out
 
 
-def clean_prices(df: pd.DataFrame, max_jump: float | None = None,
-                 asset_type: str = "fund") -> tuple[pd.DataFrame, pd.DataFrame]:
+def clean_prices(df: pd.DataFrame, max_jump: float | None = None, asset_type: str = "fund",
+                 calendar: list | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Tek varlığın fiyat tablosunu temizler. Dönüş: (temiz tablo, sorunlar tablosu)."""
     issues = []
     if df.empty:
@@ -81,7 +101,7 @@ def clean_prices(df: pd.DataFrame, max_jump: float | None = None,
     df = df[~bad].reset_index(drop=True)
 
     ret = price_series(df).pct_change()
-    flags = (ret.abs() > max_jump).fillna(False) if max_jump is not None else implausible_jumps(df, asset_type)
+    flags = (ret.abs() > max_jump).fillna(False) if max_jump is not None else implausible_jumps(df, asset_type, calendar)
     for i in ret.index[flags]:
         issues.append({"code": df.at[i, "code"], "date": df.at[i, "date"],
                        "issue": "jump", "value": round(float(ret[i]), 4)})

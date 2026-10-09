@@ -34,9 +34,14 @@ def validate_assets(frames: dict[str, pd.DataFrame], asset_types: dict[str, str]
 
     Hisse ve fon takvimleri ayrı hesaplanır (fonlar bazı günler hisselerden farklı işler)."""
     asset_types = asset_types or {}
+    # Hisse takvimi sıçrama eşiği için gerekir (eksik veri gününde eşik genişler)
+    stock_cal = market_calendar([f for c, f in frames.items()
+                                 if asset_types.get(c, "stock") == "stock" and not f.empty])
     cleaned, all_issues = {}, []
     for code, df in frames.items():
-        cleaned[code], issues = clean_prices(df, asset_type=asset_types.get(code, "stock"))
+        kind = asset_types.get(code, "stock")
+        cleaned[code], issues = clean_prices(df, asset_type=kind,
+                                             calendar=stock_cal if kind == "stock" else None)
         all_issues.append(issues)
 
     calendars = {}

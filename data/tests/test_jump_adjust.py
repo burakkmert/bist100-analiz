@@ -52,8 +52,8 @@ def test_real_moves_are_untouched():
         assert np.allclose(out["adj_close"], df["adj_close"])
 
 
-def test_stock_long_gap_uses_loose_threshold():
-    # İşlem durdurma: 3 hafta veri yok, açılışta +%25 -> düzeltilmez (birikmiş hareket olabilir)
+def test_stock_long_gap_widens_threshold():
+    # İşlem durdurma: 3 hafta veri yok (15 iş günü), açılışta +%25 -> düzeltilmez
     df = pd.DataFrame({"code": "X", "date": pd.to_datetime(["2024-01-02", "2024-01-03", "2024-01-24"]).date,
                        "close": [100.0, 101.0, 126.0], "adj_close": [100.0, 101.0, 126.0]})
     assert not implausible_jumps(df, "stock").any()
@@ -65,3 +65,15 @@ def test_clean_prices_reports_with_type_thresholds():
     _, stock_issues = clean_prices(df, asset_type="stock")
     _, fund_issues = clean_prices(df, asset_type="fund")
     assert len(stock_issues) == 1 and fund_issues.empty
+
+
+def test_missing_session_widens_stock_limit():
+    # Banka vakası: Cuma verisi eksik, Pazartesi iki seanslık +%17,6 -> gerçek hareket, dokunulmaz
+    cal = pd.to_datetime(["2022-12-14", "2022-12-15", "2022-12-16", "2022-12-19"]).date.tolist()
+    df = pd.DataFrame({"code": "VAKBN", "date": [cal[0], cal[1], cal[3]],
+                       "close": [10.0, 10.1, 11.88], "adj_close": [10.0, 10.1, 11.88]})
+    assert not implausible_jumps(df, "stock", calendar=cal).any()
+    # Aynı hareket eksik gün olmadan (tek seans) -> imkânsız, düzeltilir
+    df_full = pd.DataFrame({"code": "VAKBN", "date": cal[1:3],
+                            "close": [10.1, 11.88], "adj_close": [10.1, 11.88]})
+    assert implausible_jumps(df_full, "stock", calendar=cal).iloc[1]
