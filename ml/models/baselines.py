@@ -3,9 +3,8 @@
 TimesFM ve Chronos'un gerçekten bir şey kattığını göstermek için bunları geçmeleri gerekir.
 
 Aralık (p10/p90) nasıl üretiliyor?
-- Naive ve MA: serinin kendi geçmişindeki h günlük log-getirilerin ampirik %10/%90 dilimleri,
-  medyanı sıfıra çekilerek merkez tahmine eklenir. Böylece yalnızca "yayılım" geçmişten gelir,
-  yön bilgisi eklenmez.
+- Naive ve MA: son `spread_window` günün günlük log-getiri oynaklığı × √h (lognormal rastgele
+  yürüyüş). Yalnızca "yayılım" geçmişten gelir, yön bilgisi eklenmez.
 - ARIMA: modelin kendi %80 güven aralığı (log fiyat üzerinde).
 """
 from __future__ import annotations
@@ -19,15 +18,12 @@ from ml.models.base import OUTPUT_COLUMNS, Forecaster
 
 
 def empirical_spread(prices: np.ndarray, h: int, window: int) -> tuple[float, float]:
-    """h günlük log-getirilerin medyana göre %10 ve %90 sapmaları. Geçmiş yetmezse
-    günlük oynaklık √h ile ölçeklenir."""
-    logp = np.log(prices[-(window + h):])
-    if len(logp) > h + 20:
-        r = logp[h:] - logp[:-h]
-        med = np.median(r)
-        return float(np.quantile(r, 0.1) - med), float(np.quantile(r, 0.9) - med)
-    daily = np.diff(np.log(prices))
-    sigma = float(np.std(daily)) if len(daily) > 1 else 0.0
+    """h günlük log-getiri için %10 / %90 sapmaları: günlük oynaklık × √h (rastgele yürüyüş).
+
+    Neden çakışan h günlük getirilerin ampirik dilimleri değil? 500 günde yalnızca ~4 bağımsız
+    120 günlük dönem vardır; uç dilimler ölçülemez ve aralık ufukla birlikte büyümez."""
+    daily = np.diff(np.log(prices[-(window + 1):].astype("float64")))
+    sigma = float(np.std(daily, ddof=1)) if len(daily) > 1 else 0.0
     z = 1.2816  # standart normalde %90 dilimi
     return -z * sigma * np.sqrt(h), z * sigma * np.sqrt(h)
 
