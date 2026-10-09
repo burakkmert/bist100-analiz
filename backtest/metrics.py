@@ -150,19 +150,26 @@ def dm_table(raw: pd.DataFrame, models: list[str], refs: list[str], step: int = 
     d = raw.dropna(subset=["p50", "y", "y0"]).copy()
     d["loss"] = (d["y"] - d["p50"]).abs() / d["y0"]
     keys = by + ["horizon", "origin_date"]
-    daily = d.groupby(keys + ["model"])["loss"].mean().unstack("model")   # tahmin günü × model
+    # Eşleşmiş gözlemler: aynı (varlık, gün, ufuk) için iki modelin kaybı yan yana
+    wide = d.pivot_table(index=keys + ["code"], columns="model", values="loss")
+    daily = wide.groupby(level=keys).mean()                                   # tahmin günü × model
     rows = []
     for gkey, g in daily.groupby(level=by + ["horizon"]) if by else daily.groupby(level="horizon"):
         gkey = gkey if isinstance(gkey, tuple) else (gkey,)
         h = int(gkey[-1])
         lags = max(0, int(np.ceil(h / step)) - 1)       # üst üste binen ufuk sayısı
+        gw = wide.loc[gkey] if by else wide.xs(h, level="horizon")
         for m in models:
             for r in refs:
                 if m == r or m not in g or r not in g:
                     continue
                 pair = g[[m, r]].dropna()
+                obs = gw[[m, r]].dropna()
                 stat, p = diebold_mariano(pair[m], pair[r], lags)
                 rows.append({**dict(zip(by + ["horizon"], gkey)), "model": m, "vs": r,
-                             "rel_loss": float(pair[m].mean() / pair[r].mean()) if len(pair) else np.nan,
-                             "dm_stat": stat, "p_value": p, "n_days": len(pair)})
+                             # MASE ile aynı ağırlık: tüm eşleşmiş gözlemlerin ortalaması
+                             "rel_loss": float(obs[m].mean() / obs[r].mean()) if len(obs) else np.nan,
+                             # Uç değerlere dayanıklı: medyan kayıp oranı
+                             "rel_loss_median": float(obs[m].median() / obs[r].median()) if len(obs) else np.nan,
+                             "dm_stat": stat, "p_value": p, "n_days": len(pair), "n_obs": len(obs)})
     return pd.DataFrame(rows)
