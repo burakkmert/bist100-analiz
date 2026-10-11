@@ -27,3 +27,6 @@ model_errors:                   # gece hata tablosu (Kişi 2'nin ensemble ağır
   step: 5                       # 5 günde bir tahmin günü (hız/örneklem dengesi)
   min_obs: 5                    # bundan az gerçekleşmiş tahmini olan satır yazılmaz (gürültü)
   models: [timesfm, chronos, naive, naive_drift, moving_average]   # ARIMA yavaş, hariç
+
+scenarios:                      # 30/120 gün senaryoları (scenarios tablosu)
+  models: [timesfm, chronos, naive, naive_drift]   # 120 gün bandı naive_drift oynaklığıyla genişletilir

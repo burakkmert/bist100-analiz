@@ -25,6 +25,7 @@ Model ağırlıkları repoya girmez; Hugging Face önbelleğinden yüklenir.
 | `models/registry.py` | `build_models(["timesfm", ...])` — config'ten model oluşturur |
 | `batch_forecast.py` | **Gece giriş noktası (20:00):** tüm evren × tüm modeller → `forecasts` biçimi (120 günde p50 = NULL), `--db` upsert |
 | `model_errors.py` | **Gece (batch_forecast'tan sonra):** son 60 günde gerçekleşen tahminlerin varlık×model×ufuk hataları → `model_errors` (Kişi 2 ensemble ağırlıkları) |
+| `scenarios.py` | **Gece (model_errors'tan sonra):** 30g kötümser/temel/iyimser (1/MAE ağırlıklı kantil ortalaması), 120g yalnızca bant (oynaklıkla genişletilmiş) → `scenarios`; `--evaluate` bant kapsaması |
 | `smoke_test.py` | Tüm modelleri tek varlıkta yan yana çalıştırır |
 
 ```bash
@@ -32,6 +33,7 @@ python -m ml.smoke_test --code THYAO
 python -m ml.batch_forecast --codes THYAO GARAN IPB   # hızlı deneme
 python -m ml.batch_forecast                           # tam gece işi
 python -m ml.model_errors                             # gece hata tablosu (~2-3 dk)
+python -m ml.scenarios                                # 30/120 gün senaryoları
 pytest ml/tests -q
 ```
 
