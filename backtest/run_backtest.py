@@ -45,6 +45,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--test-days", type=int, default=504, help="Son kaç işlem günü test edilir (~2 yıl)")
     p.add_argument("--step", type=int, default=5, help="Kaç günde bir tahmin günü (5 = haftalık)")
     p.add_argument("--context", type=int, help="Bağlam uzunluğu (varsayılan config)")
+    p.add_argument("--tag", default="", help="Çıktı dosya adına ek, ör. ctx256 -> raw_<tarih>_ctx256.parquet")
     p.add_argument("--append", action="store_true",
                    help="Bugünün raw dosyası varsa bu modellerin sonuçlarını ona ekle (diğer modeller korunur)")
     p.add_argument("--from-raw", help="Modelleri çalıştırma; kayıtlı raw_<tarih>.parquet'ten metrikleri yeniden hesapla")
@@ -74,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Değerlendirme üretilemedi.", file=sys.stderr)
         return 1
     raw["type"] = raw["code"].map(types).fillna("unknown")
-    tag = date.today().isoformat()
+    tag = date.today().isoformat() + (f"_{args.tag}" if args.tag else "")
     old_path = REPORT_DIR / f"raw_{tag}.parquet"
     if args.append and old_path.exists():
         old = pd.read_parquet(old_path)
