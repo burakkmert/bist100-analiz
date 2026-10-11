@@ -57,3 +57,14 @@ def test_evaluate_on_backtest_reports_scenario_and_models():
     nd = t[t.model == "naive_drift"].set_index("horizon")
     assert set(sc.index) == {30, 120}
     assert sc.loc[120, "width_pct"] >= nd.loc[120, "width_pct"] - 1e-9   # 120 bandı en az oynaklık bandı kadar geniş
+
+
+def test_negative_lower_bound_is_floored():
+    f = fc([("Z", RD, "timesfm", 120, -5, np.nan, 50), ("Z", RD, "naive_drift", 120, -10, np.nan, 60)])
+    r = build_scenarios(f, None, ["timesfm", "naive_drift"]).iloc[0]
+    assert r.bear > 0 and np.isfinite(r.base) and r.bear <= r.base <= r.bull
+
+
+def test_default_models_exclude_plain_naive():
+    from ml.scenarios import DEFAULT_MODELS
+    assert "naive" not in DEFAULT_MODELS and "naive_drift" in DEFAULT_MODELS

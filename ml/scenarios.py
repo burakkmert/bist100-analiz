@@ -32,7 +32,10 @@ from ml.models.base import load_config
 
 OUT_DIR = Path(__file__).resolve().parent / "cache"
 SCENARIO_COLUMNS = ["code", "run_date", "horizon", "bear", "base", "bull"]
-DEFAULT_MODELS = ["timesfm", "chronos", "naive", "naive_drift"]
+# Düz naive yok: fonlar faiz işlettiği için "fiyat sabit" bandı fonlarda yalnızca %32 kapsıyor ve
+# kantil ortalamasını aşağı çekiyordu (backtest değerlendirmesi: fon 30g kapsama 0,55).
+DEFAULT_MODELS = ["timesfm", "chronos", "naive_drift"]
+MIN_PRICE_FRAC = 1e-4   # negatif/sıfır alt sınır yerine: üst sınırın binde biri (fiyat negatif olamaz)
 WIDEN_WITH = "naive_drift"
 
 
@@ -79,8 +82,11 @@ def build_scenarios(forecasts: pd.DataFrame, errors: pd.DataFrame | None = None,
         s120[c] = pd.to_numeric(s120[c], errors="coerce")
     s120["bear"] = np.fmin(s120["p10"], s120["p10_vol"])
     s120["bull"] = np.fmax(s120["p90"], s120["p90_vol"])
+    floor = s120["bull"] * MIN_PRICE_FRAC
+    s120["bear"] = np.fmax(s120["bear"], floor)          # negatif alt sınır olmaz
     s120["base"] = np.sqrt(s120["bear"] * s120["bull"])
 
+    s30 = s30.assign(bear=np.fmax(s30["bear"], s30["bull"] * MIN_PRICE_FRAC))
     out = pd.concat([s30[SCENARIO_COLUMNS], s120[SCENARIO_COLUMNS]], ignore_index=True)
     q = np.sort(out[["bear", "base", "bull"]].to_numpy(dtype="float64"), axis=1)   # bear <= base <= bull
     out[["bear", "base", "bull"]] = q
@@ -93,9 +99,9 @@ def evaluate_on_backtest(raw: pd.DataFrame, models: list[str] | None = None) -> 
     """Backtest ham sonuçları üzerinde senaryo bandının kapsaması ve genişliği.
     Her tahmin günü ayrı bir 'run_date' gibi işlenir; ağırlıklar eşit (geleceği görmemek için)."""
     models = models or DEFAULT_MODELS
-    r = raw[raw["horizon"].isin([30, 120]) & raw["model"].isin(set(models) | {WIDEN_WITH})]
+    r = raw[raw["horizon"].isin([30, 120]) & raw["model"].isin(set(models) | {WIDEN_WITH, "naive"})]
     fc = r.rename(columns={"origin_date": "run_date"})[["code", "run_date", "model", "horizon", "p10", "p50", "p90"]]
-    sc = build_scenarios(fc, None, models)
+    sc = build_scenarios(fc[fc["model"].isin(set(models) | {WIDEN_WITH})], None, models)
     truth = r[["code", "origin_date", "horizon", "y", "y0"]].drop_duplicates(["code", "origin_date", "horizon"])
     sc = sc.merge(truth.rename(columns={"origin_date": "run_date"}), on=["code", "run_date", "horizon"])
     if "type" in raw:
@@ -106,8 +112,8 @@ def evaluate_on_backtest(raw: pd.DataFrame, models: list[str] | None = None) -> 
     sc["width_pct"] = (sc["bull"] - sc["bear"]) / sc["y0"] * 100
     rows = [{"type": t, "horizon": h, "model": "senaryo", "coverage": g["inside"].mean(),
              "width_pct": g["width_pct"].mean(), "n": len(g)} for (t, h), g in sc.groupby(["type", "horizon"])]
-    # kıyas: tek tek modellerin kendi bandı
-    for m in models:
+    # kıyas: tek tek modellerin kendi bandı (naive de gösterilir, senaryoda kullanılmasa da)
+    for m in sorted(set(models) | {"naive"}):
         mm = r[r["model"] == m].copy()
         mm["type"] = mm["type"] if "type" in mm else "all"
         for (t, h), g in mm.groupby(["type", "horizon"]):

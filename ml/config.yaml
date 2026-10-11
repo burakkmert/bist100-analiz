@@ -29,4 +29,4 @@ model_errors:                   # gece hata tablosu (Kişi 2'nin ensemble ağır
   models: [timesfm, chronos, naive, naive_drift, moving_average]   # ARIMA yavaş, hariç
 
 scenarios:                      # 30/120 gün senaryoları (scenarios tablosu)
-  models: [timesfm, chronos, naive, naive_drift]   # 120 gün bandı naive_drift oynaklığıyla genişletilir
+  models: [timesfm, chronos, naive_drift]   # düz naive yok (fonlarda kapsama 0,32); 120g bandı naive_drift oynaklığıyla genişletilir
