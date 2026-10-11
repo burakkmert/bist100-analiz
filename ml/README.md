@@ -24,12 +24,14 @@ Model ağırlıkları repoya girmez; Hugging Face önbelleğinden yüklenir.
 | `models/chronos_model.py` | Chronos-2 sarmalayıcı (batch, GPU) |
 | `models/registry.py` | `build_models(["timesfm", ...])` — config'ten model oluşturur |
 | `batch_forecast.py` | **Gece giriş noktası (20:00):** tüm evren × tüm modeller → `forecasts` biçimi (120 günde p50 = NULL), `--db` upsert |
+| `model_errors.py` | **Gece (batch_forecast'tan sonra):** son 60 günde gerçekleşen tahminlerin varlık×model×ufuk hataları → `model_errors` (Kişi 2 ensemble ağırlıkları) |
 | `smoke_test.py` | Tüm modelleri tek varlıkta yan yana çalıştırır |
 
 ```bash
 python -m ml.smoke_test --code THYAO
 python -m ml.batch_forecast --codes THYAO GARAN IPB   # hızlı deneme
 python -m ml.batch_forecast                           # tam gece işi
+python -m ml.model_errors                             # gece hata tablosu (~2-3 dk)
 pytest ml/tests -q
 ```
 
