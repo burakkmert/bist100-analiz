@@ -25,4 +25,5 @@ baseline_spread_window: 500     # naive/MA aralıkları için geçmiş getiri pe
 model_errors:                   # gece hata tablosu (Kişi 2'nin ensemble ağırlıkları)
   window_days: 60               # hedef günü son 60 işlem gününe düşen tahminler
   step: 5                       # 5 günde bir tahmin günü (hız/örneklem dengesi)
+  min_obs: 5                    # bundan az gerçekleşmiş tahmini olan satır yazılmaz (gürültü)
   models: [timesfm, chronos, naive, naive_drift, moving_average]   # ARIMA yavaş, hariç

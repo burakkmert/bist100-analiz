@@ -46,3 +46,11 @@ def test_drift_beats_naive_on_trending_fund():
                  log=lambda *a: None)
     m = out.set_index(["model", "horizon"])["mae"]
     assert m[("naive_drift", 20)] < m[("naive", 20)]  # ağırlık trend modeline kaymalı
+
+
+def test_rows_with_too_few_observations_are_dropped():
+    short = frame(130, seed=5)                          # 120 gün eşiğinin hemen üstü: çok az tahmin günü
+    out, _ = run({"YENI": short, "ESKI": frame(seed=6)}, [NaiveForecaster()], HORIZONS, window=60, step=5,
+                 log=lambda *a: None, min_obs=5)
+    assert (out["n"] >= 5).all()
+    assert "ESKI" in set(out["code"])

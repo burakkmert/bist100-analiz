@@ -77,7 +77,7 @@ def errors_from_eval(res: pd.DataFrame, frames: dict[str, pd.DataFrame], window:
 
 def run(frames: dict[str, pd.DataFrame], models: list[Forecaster], horizons: list[int], window: int = 60,
         step: int = 5, context_length: int = 512, min_context: int = 120, as_of: date | None = None,
-        log=print) -> tuple[pd.DataFrame, list[dict]]:
+        log=print, min_obs: int = 5) -> tuple[pd.DataFrame, list[dict]]:
     as_of = as_of or date.today()
     contexts = build_eval_contexts(frames, horizons, window, step, context_length, min_context)
     log(f"model_errors: {len(frames)} varlık, {len(contexts)} bağlam, pencere {window} gün")
@@ -89,6 +89,7 @@ def run(frames: dict[str, pd.DataFrame], models: list[Forecaster], horizons: lis
         try:
             res = evaluate(model.predict(contexts, horizons), frames, model.name)
             out = errors_from_eval(res, frames, window, as_of)
+            out = out[out["n"] >= min_obs]       # az gözlemli satır gürültüdür; ensemble'a verilmez
             status = "ok"
         except Exception as exc:
             out, status = pd.DataFrame(columns=ERROR_COLUMNS + ["n"]), f"failed: {str(exc)[:200]}"
@@ -134,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     me_cfg = cfg.get("model_errors", {})
     window = args.window or me_cfg.get("window_days", 60)
     step = args.step or me_cfg.get("step", 5)
+    min_obs = me_cfg.get("min_obs", 5)
     names = args.models or me_cfg.get("models")
     universe = load_universe_codes(args.codes)
     types = dict(zip(universe["code"], universe["type"]))
@@ -143,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     result, stats = run(frames, build_models(names, cfg), cfg["horizons"], window, step,
-                        cfg["context_length"], cfg.get("min_history", 120))
+                        cfg["context_length"], cfg.get("min_history", 120), min_obs=min_obs)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out_csv = OUT_DIR / f"model_errors_{date.today().isoformat()}.csv"
     result.to_csv(out_csv, index=False)
