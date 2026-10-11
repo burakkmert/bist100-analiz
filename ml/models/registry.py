@@ -18,7 +18,8 @@ def build_models(names: list[str] | None = None, cfg: dict | None = None) -> lis
             models.append(NaiveForecaster(spread_window=spread))
         elif name == "naive_drift":
             from ml.models.baselines import NaiveDriftForecaster
-            models.append(NaiveDriftForecaster(m.get("naive_drift", {}).get("window", 250), spread))
+            nd = m.get("naive_drift", {})
+            models.append(NaiveDriftForecaster(nd.get("window", 250), spread, nd.get("max_annual", 1.0)))
         elif name in ("moving_average", "ma"):
             from ml.models.baselines import MovingAverageForecaster
             models.append(MovingAverageForecaster(m["moving_average"]["window"], spread))

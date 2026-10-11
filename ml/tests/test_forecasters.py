@@ -140,3 +140,11 @@ def test_negative_quantiles_are_floored_for_all_models():
 
     df = ChronosForecaster(pipeline=Neg(), device="cpu").predict({"KONTR": random_walk()}, HORIZONS)
     assert (df["p10"] > 0).all()
+
+
+def test_naive_drift_trend_is_capped():
+    from ml.models.baselines import NaiveDriftForecaster
+
+    s = (1.0 * np.exp(np.log(21) / 250 * np.arange(400))).astype("float32")   # HDH gibi: yılda ×21
+    p50 = NaiveDriftForecaster(max_annual=1.0).predict({"HDH": s}, [120]).iloc[0]["p50"]
+    assert np.isclose(p50, s[-1] * np.exp(np.log(2) / 252 * 120), rtol=1e-3)   # en fazla yıllık ×2 hızı
