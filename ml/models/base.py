@@ -44,8 +44,11 @@ def clean_series(values) -> np.ndarray:
 
 
 def fix_quantile_order(df: pd.DataFrame) -> pd.DataFrame:
-    """Kantil çaprazlamasını düzeltir: her satırda p10 <= p50 <= p90 garanti."""
+    """Kantil çaprazlamasını düzeltir (p10 <= p50 <= p90) ve fiyatları pozitif tutar.
+    Chronos pozitiflik bilmez; dağılımı geniş varlıklarda p10 negatif çıkabiliyor (KONTR, POU)."""
     q = np.sort(df[["p10", "p50", "p90"]].to_numpy(dtype="float64"), axis=1)
+    floor = np.abs(q[:, [2]]) * 1e-4                     # üst kantilin binde biri
+    q = np.where(q > floor, q, floor)
     df[["p10", "p50", "p90"]] = q
     return df
 

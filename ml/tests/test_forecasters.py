@@ -128,3 +128,15 @@ def test_naive_drift_follows_trend():
     p50 = df.set_index("horizon")["p50"]
     assert np.isclose(p50[120], s[-1] * np.exp(0.12), rtol=1e-3)
     assert (np.diff(p50.to_numpy()) > 0).all()
+
+
+def test_negative_quantiles_are_floored_for_all_models():
+    class Neg(FakeChronos):
+        def predict_quantiles(self, inputs, prediction_length, quantile_levels, **kw):
+            q, m = super().predict_quantiles(inputs, prediction_length, quantile_levels)
+            for x in q:
+                x[..., 0] = -1.0                              # Chronos negatif p10 verirse
+            return q, m
+
+    df = ChronosForecaster(pipeline=Neg(), device="cpu").predict({"KONTR": random_walk()}, HORIZONS)
+    assert (df["p10"] > 0).all()
