@@ -1,0 +1,6 @@
+# backend/app/ai için gerekenler (Kişi 2'nin backend/requirements.txt dosyasına eklenecek)
+fastapi>=0.110
+pydantic>=2.6
+httpx>=0.27   # gerçek LLM sağlayıcıları (DeepSeek vb.)
+# testler
+pytest>=8
