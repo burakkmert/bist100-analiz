@@ -1,0 +1,5 @@
+# Yerel deney çıktıları (tablolar, ham sonuçlar); depoya girmez
+reports/*.txt
+reports/*.json
+reports/*.csv
+reports/*.parquet
