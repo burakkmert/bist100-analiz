@@ -116,7 +116,8 @@ def test_dev_bypass_yalnizca_dev_ortaminda(client, monkeypatch):
 
 def test_ai_router_bagli_ve_giris_istiyor(client):
     """Kişi 3'ün router'ı /ai önekiyle (çift önek olmadan) bağlı ve auth'u kullanıyor."""
-    paths = {route.path for route in client.app.routes}
+    # app.routes yerine OpenAPI belgesi: FastAPI sürümünden bağımsız
+    paths = set(client.get("/openapi.json").json()["paths"])
     assert "/ai/chat" in paths and "/ai/chart-read" in paths
     assert "/ai/ai/chat" not in paths
     r = client.post("/ai/chat", json={"messages": [{"role": "user", "content": "RSI nedir?"}]})
