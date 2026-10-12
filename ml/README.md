@@ -26,6 +26,7 @@ Model ağırlıkları repoya girmez; Hugging Face önbelleğinden yüklenir.
 | `batch_forecast.py` | **Gece giriş noktası (20:00):** tüm evren × tüm modeller → `forecasts` biçimi (120 günde p50 = NULL), `--db` upsert |
 | `model_errors.py` | **Gece (batch_forecast'tan sonra):** son 60 günde gerçekleşen tahminlerin varlık×model×ufuk hataları → `model_errors` (Kişi 2 ensemble ağırlıkları) |
 | `scenarios.py` | **Gece (model_errors'tan sonra):** 30g kötümser/temel/iyimser (1/MAE ağırlıklı kantil ortalaması), 120g yalnızca bant (oynaklıkla genişletilmiş) → `scenarios`; `--evaluate` bant kapsaması |
+| `nightly.py` | **Gece zinciri (20:00) — Kişi 2'nin çağıracağı TEK komut:** forecast → model_errors → scenarios. Veri tazelik ön kontrolü, kilit, zaman aşımı, yeniden deneme, çıktı doğrulama; rapor `ml/cache/nightly_report_<tarih>.json` (çıkış kodu 0 = success/partial, 1 = failed) |
 | `smoke_test.py` | Tüm modelleri tek varlıkta yan yana çalıştırır |
 
 ```bash
@@ -34,6 +35,7 @@ python -m ml.batch_forecast --codes THYAO GARAN IPB   # hızlı deneme
 python -m ml.batch_forecast                           # tam gece işi
 python -m ml.model_errors                             # gece hata tablosu (~2-3 dk)
 python -m ml.scenarios                                # 30/120 gün senaryoları
+python -m ml.nightly --db                             # tüm gece zinciri (forecast + model_errors + scenarios)
 pytest ml/tests -q
 ```
 
