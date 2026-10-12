@@ -59,17 +59,23 @@ class NaiveForecaster(_CenterSpreadForecaster):
 
 class NaiveDriftForecaster(_CenterSpreadForecaster):
     """Trendli naive: son fiyat × exp(ortalama günlük log-getiri × h).
-    Para piyasası/borçlanma fonları gibi sürekli faiz işleten serilerde adil kıyas budur."""
+    Para piyasası/borçlanma fonları gibi sürekli faiz işleten serilerde adil kıyas budur.
+
+    Trend yıllık ±max_annual ile sınırlanır: tek hisseye yoğun serbest fonlar bir yılda ×20
+    yapabiliyor (HDH, PGE); bu trendi ileri taşımak 120 günde %700'lük hata üretiyordu.
+    Varsayılan %100/yıl, para piyasası fonlarının ~%40-50 faizini rahatça kapsar."""
 
     name = "naive_drift"
 
-    def __init__(self, drift_window: int = 250, spread_window: int = 500):
+    def __init__(self, drift_window: int = 250, spread_window: int = 500, max_annual: float = 1.0):
         super().__init__(spread_window)
         self.drift_window = drift_window
+        self.max_daily = np.log1p(max_annual) / 252   # yıllık ±%100 -> günlük log sınır
 
     def center(self, prices, h):
         logp = np.log(prices[-(self.drift_window + 1):].astype("float64"))
         mu = (logp[-1] - logp[0]) / (len(logp) - 1) if len(logp) > 1 else 0.0
+        mu = float(np.clip(mu, -self.max_daily, self.max_daily))
         return float(prices[-1] * np.exp(mu * h))
 
 

@@ -20,3 +20,11 @@ pytest backtest/tests -q
 
 Not: ARIMA her bağlam için ayrı model kurduğundan tam evrende çok yavaştır (~36 bin fit);
 ARIMA'yı ayrıca ve seyrek (`--step 20`) çalıştırmak önerilir.
+
+## Görev 7 — bağlam uzunluğu deneyi
+```powershell
+powershell -ExecutionPolicy Bypass -File backtest\context_experiment.ps1   # 90/120/256/512, ~15 dk
+python -m backtest.compare_contexts                                        # yalnızca karşılaştırma
+```
+Sonuç (2026-10-11): 512 gün varsayılan. Kısa bağlam hisselerde uzun ufukta naive_drift'e karşı
+nokta hatayı düşürür ama düz naive'i geçmez ve kapsamayı bozar (hisse 120g: 0,60 vs 0,77).

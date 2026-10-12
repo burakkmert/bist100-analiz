@@ -15,9 +15,19 @@ models:
   naive: {}
   naive_drift:
     window: 250                 # trend için son ~1 yılın ortalama günlük getirisi
+    max_annual: 1.0             # trend yıllık ±%100 ile sınırlı (serbest fonlarda ×20 trendi ileri taşımasın)
   moving_average:
     window: 20
   arima:
     order: [1, 1, 1]
 
 baseline_spread_window: 500     # naive/MA aralıkları için geçmiş getiri penceresi (gün)
+
+model_errors:                   # gece hata tablosu (Kişi 2'nin ensemble ağırlıkları)
+  window_days: 60               # hedef günü son 60 işlem gününe düşen tahminler
+  step: 5                       # 5 günde bir tahmin günü (hız/örneklem dengesi)
+  min_obs: 5                    # bundan az gerçekleşmiş tahmini olan satır yazılmaz (gürültü)
+  models: [timesfm, chronos, naive, naive_drift, moving_average]   # ARIMA yavaş, hariç
+
+scenarios:                      # 30/120 gün senaryoları (scenarios tablosu)
+  models: [timesfm, chronos, naive_drift]   # düz naive yok (fonlarda kapsama 0,32); 120g bandı naive_drift oynaklığıyla genişletilir
