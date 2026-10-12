@@ -106,6 +106,7 @@ function RootNavigator() {
             {/* Detay ekranının kendi arka planı var → sağdan kayarak açılabilir, kaydırarak geri dönülebilir */}
             <Stack.Screen name="asset/[code]" options={{ animation: 'slide_from_right', gestureEnabled: true }} />
             <Stack.Screen name="assistant" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="chart-read" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="position/new" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="position/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           </Stack.Protected>

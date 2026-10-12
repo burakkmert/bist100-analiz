@@ -141,7 +141,8 @@ const GLOSSARY: { keys: string[]; text: string }[] = [
 ];
 
 function mockReply(question: string, hasImage: boolean, ctx: ScreenContext | null): string {
-  const q = question.toLocaleLowerCase('tr-TR');
+  // 'RSI'.toLocaleLowerCase('tr-TR') = 'rsı' olur; kısaltmalar eşleşsin diye I→i'ye de çevir
+  const q = question.replace(/I/g, 'i').replace(/İ/g, 'i').toLowerCase();
   if (ctx?.code && /(bu|neden|sinyal|grafik|ne anlat)/.test(q) && !hasImage) {
     return (
       `${ctx.code} detay ekranından soruyorsunuz. (Demo yanıtı — gerçek sürümde bu varlığın model analizi, ` +

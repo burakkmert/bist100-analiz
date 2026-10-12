@@ -27,3 +27,9 @@ def test_sanitize_ihlali_siler_ve_uyari_ekler():
 def test_sanitize_uyariyi_iki_kez_eklemez():
     once = g.sanitize("Açıklama.")
     assert g.sanitize(once).count(g.DISCLAIMER) == 1
+
+
+def test_olumsuz_garanti_cumlesi_ihlal_degil():
+    assert g.violations("Garanti getiri sunan bir fon yoktur; her yatırımın riski vardır.") == []
+    assert g.violations("Garanti kazanç veremem.") == []
+    assert "advice" in g.violations("Bu fon garanti getiri sağlar, kaçırmayın.")

@@ -48,6 +48,7 @@ SCREEN_NAMES = {
 
 _DIR = {"up": "yükseliş yönlü", "down": "düşüş yönlü", "flat": "yatay"}
 _RISK = {"low": "düşük", "medium": "orta", "high": "yüksek"}
+_REGIME = {"trend": "trend", "range": "yatay piyasa", "high_vol": "yüksek oynaklık"}
 
 
 def describe(context: dict[str, Any] | None, analysis: dict[str, Any] | None) -> str:
@@ -63,7 +64,7 @@ def describe(context: dict[str, Any] | None, analysis: dict[str, Any] | None) ->
         ind = analysis.get("indicators") or {}
         lines += [
             f"Ufuk: {analysis.get('horizon')} gün · Model görüşü: {_DIR.get(analysis.get('direction', ''), analysis.get('direction'))}",
-            f"Güven skoru: {analysis.get('confidence')}/100 · Risk: {_RISK.get(analysis.get('risk', ''), analysis.get('risk'))} · Rejim: {analysis.get('regime')}",
+            f"Güven skoru: {analysis.get('confidence')}/100 · Risk: {_RISK.get(analysis.get('risk', ''), analysis.get('risk'))} · Rejim: {_REGIME.get(analysis.get('regime', ''), analysis.get('regime'))}",
             f"%80 olasılık aralığı (p10–p90): {r.get('low')} – {r.get('high')} · orta değer (p50): {r.get('mid')}",
         ]
         if ind:
