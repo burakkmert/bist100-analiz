@@ -19,3 +19,11 @@ pytest backtest/tests -q
 
 Not: ARIMA her bağlam için ayrı model kurduğundan tam evrende çok yavaştır (~36 bin fit);
 ARIMA'yı ayrıca ve seyrek (`--step 20`) çalıştırmak önerilir.
+
+## Fon kategorisine göre kırılım
+```powershell
+python -m backtest.by_category --raw backtest\reports\raw_<tarih>_ctx512.parquet
+```
+Kategori `data/tefas_funds.csv`'den (yoksa fon adından) çıkarılır: para piyasası, borçlanma,
+hisse, altın/kıymetli maden, değişken/karma, fon sepeti, serbest, katılım, diğer.
+Her kategori için MASE, kapsama ve TimesFM/Chronos ÷ naive_drift Diebold–Mariano tablosu verir.
