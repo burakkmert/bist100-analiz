@@ -3,7 +3,7 @@
 | Dosya | Görev |
 | --- | --- |
 | `bist_stocks.csv` | BIST hisse listesi (code,name,sector) — tek doğru kaynak |
-| `collectors/bist_list.py` | Listeyi okur/temizler; `--enrich` ile ad/sektörü yfinance'tan doldurur |
+| `collectors/bist_list.py` | Listeyi okur/temizler; `--update` ile İş Yatırım'dan piyasa değerine göre ilk 500 hisseyi (config: `stock_universe`) ad/sektörle yazar; `--enrich` ile boşları yfinance'tan doldurur |
 | `collectors/bist_prices.py` | yfinance OHLCV; 5 yıl ilk yükleme, sonra artımlı; önbellek + DB upsert |
 | `config.yaml` | Fon evreni (ilk 300 + ek fonlar), geçmiş yıl sayısı |
 | `collectors/tefas_list.py` | TEFAS fon listesi → büyüklüğe göre evren → `tefas_funds.csv` |
@@ -13,6 +13,8 @@
 | `collectors/tefas_prices.py` | İlk yüklemede fon başına 5 yıl; sonra tek toplu çağrıyla eksik günler |
 
 ```bash
+python -m data.collectors.bist_list --update --dry-run           # evren değişikliğini göster
+python -m data.collectors.bist_list --update                     # bist_stocks.csv'yi güncelle (ayda bir yeterli)
 python -m data.collectors.bist_list --enrich
 python -m data.collectors.bist_prices --codes THYAO GARAN --years 1   # hızlı deneme
 python -m data.collectors.bist_prices --with-index                     # tüm liste + XU100

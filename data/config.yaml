@@ -6,3 +6,8 @@ fund_universe:
   fund_type: YAT            # TEFAS yatırım fonları (EMK: emeklilik, BYF: borsa yatırım fonu)
   top_n_by_size: 300        # fon büyüklüğüne göre ilk N fon
   extra_codes: []           # izleme listesinden gelen ek fonlar, ör. [IPB, TTE]
+
+stock_universe:
+  top_n_by_mcap: 500        # İş Yatırım tablosundan piyasa değerine göre ilk N hisse
+  min_mcap_mn_tl: 0         # isteğe bağlı alt sınır (mn TL); 0 = yok
+  extra_codes: []           # her durumda eklenecek kodlar (mevcut liste zaten korunur)
