@@ -7,6 +7,7 @@ Walk-forward test: model hiçbir zaman tahmin anından sonraki veriyi görmez.
 | `metrics.py` | MAE, MAPE, MASE (naive'e göre), yön doğruluğu + binom testi, kapsama, aralık genişliği |
 | `walk_forward.py` | Son 2 yılda (504 gün) haftalık tahmin günleri; model yalnızca o güne kadarki veriyi görür |
 | `run_backtest.py` | Giriş noktası: walk-forward → model×ufuk ve hisse/fon×model×ufuk tabloları + `summary_<tarih>.json` |
+| `by_category.py` | Fon kategorisine göre kırılım: `python -m backtest.by_category --raw backtest\reports\raw_<tarih>_ctx512.parquet` → MASE, kapsama, naive_drift'e karşı DM (kategori TEFAS'tan, yoksa fon adından) |
 
 **Okuma kılavuzu:** MASE < 1 → model naive'i geçiyor. Kapsama ≈ 0.80 → %80 aralık iyi kalibre.
 Yön doğruluğu yalnızca binom p-değeri < 0.05 ise "yazı-turadan iyi" sayılır.
@@ -19,11 +20,3 @@ pytest backtest/tests -q
 
 Not: ARIMA her bağlam için ayrı model kurduğundan tam evrende çok yavaştır (~36 bin fit);
 ARIMA'yı ayrıca ve seyrek (`--step 20`) çalıştırmak önerilir.
-
-## Fon kategorisine göre kırılım
-```powershell
-python -m backtest.by_category --raw backtest\reports\raw_<tarih>_ctx512.parquet
-```
-Kategori `data/tefas_funds.csv`'den (yoksa fon adından) çıkarılır: para piyasası, borçlanma,
-hisse, altın/kıymetli maden, değişken/karma, fon sepeti, serbest, katılım, diğer.
-Her kategori için MASE, kapsama ve TimesFM/Chronos ÷ naive_drift Diebold–Mariano tablosu verir.
