@@ -1,5 +1,5 @@
 -- =====================================================================
--- Fon ve Hisse Takip — ortak veritabanı şeması (TASLAK v0.1)
+-- Fon ve Hisse Takip — ortak veritabanı şeması (TASLAK v0.2)
 -- PostgreSQL 16. Kaynak: Proje Planı v3, Kısım B §5.1
 --
 -- KURAL: Bu dosya ortak sözleşmedir. Değişiklik yalnızca PR + 3 onay ile.
@@ -12,7 +12,7 @@
 CREATE TABLE IF NOT EXISTS assets (
     code            VARCHAR(16)  PRIMARY KEY,           -- THYAO, IPB
     name            TEXT         NOT NULL,
-    type            VARCHAR(8)   NOT NULL CHECK (type IN ('stock', 'fund')),
+    type            VARCHAR(8)   NOT NULL CHECK (type IN ('stock', 'fund', 'index')),  -- index: XU100 (yalnızca fiyat; tahmin/sinyal üretilmez)
     sector          TEXT,                               -- hisse: sektör, fon: fon türü
     is_active       BOOLEAN      NOT NULL DEFAULT TRUE,
     min_history_ok  BOOLEAN      NOT NULL DEFAULT FALSE, -- >=120 iş günü geçmiş var mı
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS prices (
 CREATE TABLE IF NOT EXISTS forecasts (
     code      VARCHAR(16) NOT NULL REFERENCES assets(code),
     run_date  DATE        NOT NULL,
-    model     VARCHAR(32) NOT NULL,                     -- timesfm, chronos, naive, ma, arima
+    model     VARCHAR(32) NOT NULL,                     -- timesfm, chronos, naive, naive_drift, ma, arima
     horizon   SMALLINT    NOT NULL CHECK (horizon IN (1, 5, 20, 30, 120)),
     p10       NUMERIC(18,6),
     p50       NUMERIC(18,6),                            -- 120 günde NULL (nokta tahmin yok)
