@@ -168,3 +168,11 @@ def test_orchestrate_scenarios_failure_is_critical():
     with tempfile.TemporaryDirectory() as tmp:
         rep = orchestrate(TODAY, False, None, False, r, no_sleep, 0, Path(tmp))
     assert rep["status"] == "failed" and rep["failed_critical"] == ["scenarios"]
+
+
+def test_orchestrate_passes_forecast_models():
+    r = FakeRunner({})
+    with tempfile.TemporaryDirectory() as tmp:
+        orchestrate(TODAY, False, None, True, r, no_sleep, 0, Path(tmp), forecast_models=["naive", "timesfm"])
+    fa = r.calls[0][1]
+    assert fa[fa.index("--models") + 1:fa.index("--models") + 3] == ["naive", "timesfm"]

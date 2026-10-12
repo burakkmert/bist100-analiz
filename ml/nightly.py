@@ -207,7 +207,7 @@ def run_step(step: Step, args: list[str], runner=run_subprocess, retries: int = 
 
 def orchestrate(run_date: date, db: bool, codes: list[str] | None, skip_model_errors: bool,
                 runner=run_subprocess, sleep=time.sleep, retry_wait_s: int = 30,
-                out_dir: Path = OUT_DIR) -> dict:
+                out_dir: Path = OUT_DIR, forecast_models: list[str] | None = None) -> dict:
     """Adımları sırayla çalıştırır. Dönüş: rapor sözlüğü (status: success | partial | failed)."""
     iso = run_date.isoformat()
     common = (["--db"] if db else [])
@@ -216,7 +216,8 @@ def orchestrate(run_date: date, db: bool, codes: list[str] | None, skip_model_er
     e_csv = out_dir / f"model_errors_{iso}.csv"
 
     arg_map = {
-        "forecast": [*common, *scope, "--run-date", iso],
+        "forecast": [*common, *scope, "--run-date", iso,
+                     *(["--models", *forecast_models] if forecast_models else [])],
         "model_errors": [*common, *scope],
         "scenarios": [*common, "--forecasts", str(f_csv), "--errors", str(e_csv)],
     }
@@ -290,7 +291,10 @@ def main(argv: list[str] | None = None) -> int:
                 return finish({"run_date": run_date.isoformat(), "status": "failed", "freshness": freshness,
                                "steps": [], "problems": ["fiyat verisi bayat; önce: python -m data.run_daily"]}, 1)
 
-        report = orchestrate(run_date, args.db, args.codes, args.skip_model_errors)
+        from ml.models.base import load_config
+
+        fmodels = load_config().get("nightly", {}).get("forecast_models")   # boşsa config'teki tüm modeller
+        report = orchestrate(run_date, args.db, args.codes, args.skip_model_errors, forecast_models=fmodels)
         report["freshness"] = freshness
 
         iso = run_date.isoformat()

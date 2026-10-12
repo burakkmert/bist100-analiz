@@ -31,3 +31,6 @@ model_errors:                   # gece hata tablosu (Kişi 2'nin ensemble ağır
 
 scenarios:                      # 30/120 gün senaryoları (scenarios tablosu)
   models: [timesfm, chronos, naive_drift]   # düz naive yok (fonlarda kapsama 0,32); 120g bandı naive_drift oynaklığıyla genişletilir
+
+nightly:                        # gece zinciri (python -m ml.nightly)
+  forecast_models: [timesfm, chronos, naive, naive_drift]   # forecasts tablosuna yazılacaklar (ARIMA yavaş, MA ensemble'da yok)
