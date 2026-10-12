@@ -43,7 +43,6 @@ jobs:
   mobile:
     name: Mobil (tsc)
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('mobile/package.json') != '' }}
     defaults:
       run:
         working-directory: mobile

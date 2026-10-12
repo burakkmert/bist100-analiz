@@ -58,6 +58,27 @@ def test_alembic_ile_sozlesme_ayni(database, contract_db):
     assert migrated == contract
 
 
+def _constraints(eng, schema: str) -> list[tuple[str, str]]:
+    """Tablo + kısıt tanımı (CHECK, PK, FK, UNIQUE). Kısıt adları karşılaştırılmaz."""
+    rows = eng.connect().execute(
+        text(
+            "SELECT c.relname, pg_get_constraintdef(k.oid) FROM pg_constraint k "
+            "JOIN pg_class c ON c.oid = k.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "WHERE n.nspname = :s AND c.relname <> 'alembic_version'"
+        ),
+        {"s": schema},
+    )
+    # FK tanımı şema adını içerebilir ("REFERENCES contract.assets"); onu ayıkla
+    return sorted((t, d.replace(f"{schema}.", "")) for t, d in rows)
+
+
+def test_kisitlar_sozlesmeyle_ayni(database, contract_db):
+    """Ör. sözleşmede CHECK (type IN ('stock','fund','index')) varsa göçlerde de olmalı."""
+    migrated = _constraints(create_engine(database), "public")
+    contract = _constraints(contract_db, "contract")
+    assert migrated == contract
+
+
 def test_modeller_ile_veritabani_ayni(database):
     migrated = _describe(database)
     assert set(Base.metadata.tables) == set(migrated), "Tablo listesi farklı"
