@@ -43,7 +43,36 @@ pip install -r requirements.txt
 cp .env.example .env   # değerleri doldur
 ```
 
-Docker Compose (PostgreSQL 16 + backend) ve CI Kişi 2 tarafından eklenecek.
+## Backend'i çalıştırma (Docker)
+
+Gerekenler: Docker Desktop (Windows'ta WSL 2 ile).
+
+```bash
+cp .env.example .env          # Windows: copy .env.example .env
+docker compose up --build     # PostgreSQL 16 + FastAPI; şema göçleri otomatik uygulanır
+```
+
+- Swagger: http://localhost:8000/docs · sağlık: http://localhost:8000/health
+- Veritabanı bilgisayardan `localhost:5432` (kullanıcı/şifre `fon`/`fon`, DB `fontakip`) olarak erişilebilir;
+  Kişi 1'in `--db` seçenekli betikleri `.env`'deki `DATABASE_URL` ile doğrudan yazar.
+- Kişi 3'ün LLM anahtarları `backend/.env` içinde durabilir; compose onu da okur.
+- Mobilde Supabase girişi hazır olana kadar `.env`'de `AUTH_DEV_BYPASS=1` ile token'sız deneme yapılabilir.
+
+### Testler ve CI
+
+Her PR'da GitHub Actions şunları çalıştırır: `ruff` (Kişi 2 kodu), `pytest backend/tests`,
+`pytest backend/app/ai/tests`, mobil için `tsc`. Yerelde:
+
+```bash
+docker compose up -d db
+cd backend && pip install -r requirements-dev.txt && pytest tests app/ai/tests -q
+```
+
+### Şema değişikliği
+
+`shared/db_schema.sql` sözleşmedir; veritabanı Alembic göçleriyle kurulur (`backend/alembic/`).
+`backend/tests/test_schema_contract.py` sözleşme ↔ göçler ↔ SQLAlchemy modellerinin aynı olduğunu
+denetler. Değişiklik akışı: `db_schema.sql` + model + yeni göç (`alembic revision -m "..."`) → PR (3 onay).
 
 ## Git kuralları
 

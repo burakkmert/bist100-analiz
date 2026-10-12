@@ -1,6 +1,12 @@
-"""FastAPI iskeleti. Şimdilik sahte veriyle çalışır; karar motoru hazır olunca
-`backend/mock/` yerine veritabanından okunacak. Sözleşme: docs/api.md
+"""FastAPI uygulamasının giriş noktası.
+
+Çalıştırma (repo kökünden):  docker compose up
+Yerelde (backend/ içinde):   uvicorn app.main:app --reload
+Belgeler:                    http://localhost:8000/docs
+
+Sözleşme: shared/openapi.yaml (Hafta 2'de eklenecek), shared/db_schema.sql
 """
+
 import json
 from pathlib import Path
 
@@ -8,17 +14,28 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
-MOCK = Path(__file__).resolve().parent.parent / "mock"
+from app.ai.router import router as ai_router  # Kişi 3 — prefix="/ai" router'ın içinde
+from app.api import health, profile
+from app.core.config import get_settings
 
-app = FastAPI(title="BIST100 Analiz API", version="0.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
+settings = get_settings()
 
+app = FastAPI(
+    title="Fon ve Hisse Takip API",
+    version="0.2.0",
+    description="Model sinyalleri yatırım tavsiyesi değildir (SPK).",
+)
 
-def _load(name: str):
-    path = MOCK / name
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="Veri bulunamadı")
-    return json.loads(path.read_text(encoding="utf-8"))
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(health.router)
+app.include_router(profile.router)
+app.include_router(ai_router)
 
 
 @app.get("/", include_in_schema=False)
@@ -26,16 +43,25 @@ def root():
     return RedirectResponse(url="/docs")
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+# ---------------------------------------------------------------------------
+# GEÇİCİ: ilk iskeletten kalan sahte uçlar (backend/mock/*.json).
+# Sözleşmedeki /assets uçları gelince (Hafta 3–4) kaldırılacak.
+# ---------------------------------------------------------------------------
+MOCK_DIR = Path(__file__).resolve().parent.parent / "mock"
 
 
-@app.get("/stocks")
+def _load_mock(name: str):
+    path = MOCK_DIR / name
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Veri bulunamadı")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+@app.get("/stocks", tags=["eski-mock"], deprecated=True)
 def list_stocks():
-    return _load("stocks.json")
+    return _load_mock("stocks.json")
 
 
-@app.get("/stocks/{symbol}/analysis")
+@app.get("/stocks/{symbol}/analysis", tags=["eski-mock"], deprecated=True)
 def stock_analysis(symbol: str):
-    return _load(f"analysis_{symbol.upper()}.json")
+    return _load_mock(f"analysis_{symbol.upper()}.json")
