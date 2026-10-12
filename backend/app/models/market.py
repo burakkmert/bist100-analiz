@@ -24,7 +24,7 @@ class Asset(Base):
 
     code: Mapped[str] = mapped_column(Code, primary_key=True)
     name: Mapped[str] = mapped_column(Text)
-    type: Mapped[str] = mapped_column(String(8))  # 'stock' | 'fund'
+    type: Mapped[str] = mapped_column(String(8))  # 'stock' | 'fund' | 'index' (XU100; tahmin/sinyal yok)
     sector: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true")
     min_history_ok: Mapped[bool] = mapped_column(Boolean, server_default="false")
