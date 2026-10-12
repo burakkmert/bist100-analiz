@@ -37,7 +37,9 @@ def contract_db(database):
     with eng.begin() as conn:
         conn.execute(text("DROP SCHEMA IF EXISTS contract CASCADE; CREATE SCHEMA contract;"))
         conn.execute(text("SET search_path TO contract"))
-        conn.exec_driver_sql(SCHEMA_SQL.read_text(encoding="utf-8"))
+        conn.exec_driver_sql(
+            SCHEMA_SQL.read_text(encoding="utf-8"), execution_options={"no_parameters": True}
+        )
     yield eng
     with eng.begin() as conn:
         conn.execute(text("DROP SCHEMA contract CASCADE"))
