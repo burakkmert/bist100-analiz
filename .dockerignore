@@ -1,0 +1,12 @@
+# Docker imajına yalnızca backend, engine ve shared girer; gerisini gönderme (hızlı build)
+.git
+**/__pycache__
+**/.venv
+**/node_modules
+mobile
+ml
+data
+backtest
+docs
+.env
+backend/.env

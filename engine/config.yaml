@@ -1,0 +1,29 @@
+# Karar motoru eşikleri (Kişi 2). Değerler başlangıç tahminidir;
+# Hafta 5–6'da Kişi 1'in backtest'iyle grid araması yapılarak ayarlanır.
+
+indicators:
+  rsi_period: 14
+  macd: {fast: 12, slow: 26, signal: 9}
+  ma_short: 20
+  ma_long: 50
+  atr_period: 14
+  vol_window: 20
+
+ensemble:
+  models: [timesfm, chronos]
+  error_window_days: 60        # model_errors.window_days
+  min_weight: 0.1              # tek modelin ağırlığı bunun altına düşmez
+
+regime:
+  adx_trend: 25                # ADX > 25 → trend
+  high_vol_percentile: 0.80    # 1 yıllık volatilite yüzdeliği > 0.80 → yüksek oynaklık
+
+direction:
+  atr_fraction: 0.5            # |p50 − son fiyat| > 0.5 × ATR → up/down
+
+signals:
+  horizons: [1, 5, 20]         # bildirim üreten ufuklar (120 asla)
+  min_confidence: {cautious: 75, balanced: 65, aggressive: 55}
+  budget_fraction: {cautious: 0.05, balanced: 0.10, aggressive: 0.15}
+  stop_atr_multiple: 2.0
+  cooldown_days: 5             # aynı varlık için tekrar sinyal bekleme süresi

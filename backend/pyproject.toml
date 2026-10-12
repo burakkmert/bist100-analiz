@@ -1,0 +1,18 @@
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+# Kişi 3'ün klasörü kendi stiline göre; göç dosyaları SQL gömüyor
+extend-exclude = ["app/ai", "alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# B008: FastAPI'de Depends(...) varsayılan argümanda kullanılır, bu normaldir
+ignore = ["B008"]
+
+[tool.ruff.lint.isort]
+# backend/alembic klasörü var diye alembic paketini yerel sanmasın
+known-third-party = ["alembic"]
+known-first-party = ["app", "engine", "tests"]
+
+[tool.pytest.ini_options]
+pythonpath = [".", ".."]

@@ -1,0 +1,50 @@
+# Tek komutla geliştirme ortamı:  docker compose up --build
+# - db:      PostgreSQL 16 (veriler "pgdata" volume'unda kalıcı; localhost:5432'den de erişilir,
+#            böylece Kişi 1'in --db betikleri bilgisayardan doğrudan yazabilir)
+# - backend: FastAPI (kod değişince otomatik yeniden yüklenir), http://localhost:8000/docs
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fon}
+      POSTGRES_DB: ${POSTGRES_DB:-fontakip}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fon} -d ${POSTGRES_DB:-fontakip}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - path: .env
+        required: true
+      - path: backend/.env          # Kişi 3'ün LLM anahtarları (varsa)
+        required: false
+    environment:
+      # Konteyner içinden DB'ye servis adıyla ("db") bağlanılır
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fon}:${POSTGRES_PASSWORD:-fon}@db:5432/${POSTGRES_DB:-fontakip}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      # Geliştirme sırasında kodu konteynere bağla (yeniden build gerekmez)
+      - ./backend:/app/backend
+      - ./engine:/app/engine
+      - ./shared:/app/shared
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+volumes:
+  pgdata:

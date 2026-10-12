@@ -40,3 +40,6 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Araçlar
+.ruff_cache/

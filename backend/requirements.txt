@@ -1,0 +1,15 @@
+# Backend (Docker imajı bunu kurar). Kişi 1'in model paketleri (torch vb.) kökteki
+# requirements.txt'tedir; sunucu imajına girmez.
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30
+pydantic>=2.6,<3
+pydantic-settings>=2.4,<3
+SQLAlchemy>=2.0,<2.1
+alembic>=1.13,<2
+psycopg[binary]>=3.1,<4
+PyJWT[crypto]>=2.9,<3
+APScheduler>=3.10,<4
+httpx>=0.27                # Expo Push + Kişi 3'ün LLM sağlayıcıları
+PyYAML>=6.0
+pandas>=2.2
+numpy>=1.26
