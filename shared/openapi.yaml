@@ -1,0 +1,544 @@
+# Fon ve Hisse Takip API — ortak sözleşme
+# Sürüm 0.2.0-taslak · Kişi 3 hazırladı, Kişi 2 ile birlikte gözden geçirilip dondurulacak (shared/ kuralı: PR + 3 onay).
+#
+# Kurallar
+#  • Alan adları shared/db_schema.sql (v0.2) ile aynıdır; birkaç yerde istemci kolaylığı için gruplanır
+#    (analysis.low/mid/high → "range" nesnesi). Bu farklar aşağıda ilgili şemada not edilmiştir.
+#  • Her yanıtın "example"ı doludur: Kişi 2'nin MOCK=1 modu bu örnekleri döndürebilir.
+#  • Hata biçimi FastAPI varsayılanıdır: {"detail": "..."}.
+#  • Kimlik: Supabase access token → Authorization: Bearer <token> (/health hariç tüm uçlar).
+#  • /stocks ve /stocks/{symbol}/analysis eski iskeletten kalmadır (deprecated); /assets gelince kaldırılır.
+openapi: 3.1.0
+info:
+  title: Fon ve Hisse Takip API
+  version: 0.2.0
+  description: Model sinyalleri yatırım tavsiyesi değildir (SPK).
+servers:
+  - url: http://localhost:8000
+security:
+  - bearerAuth: []
+
+tags:
+  - { name: system }
+  - { name: assets, description: Kişi 2 — veri ve karar motoru çıktıları }
+  - { name: profile, description: Kişi 2 }
+  - { name: portfolio, description: Kişi 2 }
+  - { name: signals, description: Kişi 2 }
+  - { name: ai, description: Kişi 3 — sohbet ve grafik okuma }
+
+paths:
+  /health:
+    get:
+      tags: [system]
+      summary: Sunucu ve veritabanı ayakta mı?
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              example: { status: ok, db: ok, mock: false }
+
+  # ---------------------------------------------------------------- assets (Kişi 2)
+  /assets:
+    get:
+      tags: [assets]
+      summary: Varlık listesi (son fiyat ve günlük değişimle)
+      parameters:
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/AssetType' }, description: Boşsa hisse + fon (endeks hariç) }
+        - { name: q, in: query, schema: { type: string }, description: Kod veya ad araması (Türkçe büyük/küçük harf duyarsız) }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/AssetListItem' } }
+              example:
+                - { code: THYAO, name: Türk Hava Yolları, type: stock, sector: Ulaştırma, last_price: 312.5, change_pct: 1.84 }
+                - { code: IPB, name: İş Portföy BIST Banka Endeksi Fonu, type: fund, sector: Hisse Senedi Fonu, last_price: 4.8213, change_pct: 0.91 }
+
+  /assets/{code}/history:
+    get:
+      tags: [assets]
+      summary: Fiyat serisi (eskiden yeniye)
+      description: Fonlarda yalnızca close doludur. XU100 (type=index) de bu uçtan istenir.
+      parameters:
+        - $ref: '#/components/parameters/Code'
+        - { name: days, in: query, schema: { type: integer, default: 365, minimum: 1, maximum: 1825 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/PricePoint' } }
+              example:
+                - { date: '2026-10-08', open: 305.0, high: 311.2, low: 303.5, close: 309.8, adj_close: 309.8, volume: 18200000 }
+                - { date: '2026-10-09', open: 310.0, high: 314.0, low: 308.1, close: 312.5, adj_close: 312.5, volume: 21400000 }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /assets/{code}/forecast:
+    get:
+      tags: [assets]
+      summary: Son gece çalışmasının tahmin bantları (model bazında + ensemble) ve 30/120 gün senaryoları
+      parameters: [ { $ref: '#/components/parameters/Code' } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Forecast' }
+              example:
+                code: THYAO
+                run_date: '2026-10-09'
+                bands:
+                  - { model: ensemble, horizon: 1, p10: 306.0, p50: 313.1, p90: 320.4 }
+                  - { model: ensemble, horizon: 5, p10: 298.2, p50: 316.0, p90: 333.5 }
+                  - { model: ensemble, horizon: 20, p10: 285.0, p50: 321.4, p90: 356.8 }
+                  - { model: timesfm, horizon: 5, p10: 299.0, p50: 317.2, p90: 334.0 }
+                  - { model: chronos, horizon: 5, p10: 297.1, p50: 314.4, p90: 332.6 }
+                scenarios:
+                  - { horizon: 30, bear: 280.0, base: 322.0, bull: 362.0 }
+                  - { horizon: 120, bear: 250.0, base: 340.0, bull: 420.0 }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /assets/{code}/analysis:
+    get:
+      tags: [assets]
+      summary: Karar motoru çıktısı (analysis tablosu) + gece uzman yorumu (ai_explanations)
+      parameters:
+        - $ref: '#/components/parameters/Code'
+        - { name: horizon, in: query, schema: { $ref: '#/components/schemas/Horizon' } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Analysis' }
+              example:
+                code: THYAO
+                run_date: '2026-10-09'
+                horizon: 5
+                range: { low: 298.2, mid: 316.0, high: 333.5 }
+                direction: up
+                confidence: 68
+                risk: medium
+                regime: trend
+                weights: { timesfm: 0.6, chronos: 0.4 }
+                indicators: { rsi: 58.2, macd_hist: 0.4, ma20_above_ma50: true, atr_pct: 2.1 }
+                comment: Modeller 5 günlük ufukta yükseliş yönünde büyük ölçüde uzlaşıyor (güven 68/100).
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /screener:
+    get:
+      tags: [assets]
+      summary: Tarayıcı — 5 günlük model görüşüne göre filtre
+      parameters:
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/AssetType' } }
+        - { name: direction, in: query, schema: { $ref: '#/components/schemas/Direction' } }
+        - { name: min_conf, in: query, schema: { type: integer, minimum: 0, maximum: 100 } }
+        - { name: horizon, in: query, schema: { $ref: '#/components/schemas/Horizon' } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/AssetListItem' } }
+
+  # ---------------------------------------------------------------- profile (Kişi 2 — uygulandı)
+  /me/profile:
+    get:
+      tags: [profile]
+      summary: Profil (backend/app/api/profile.py ile birebir)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ProfileOut' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    put:
+      tags: [profile]
+      summary: Profil güncelle — yalnızca gönderilen alanlar değişir; silmek için null
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileUpdate' }
+            example: { risk_profile: balanced, budget: 50000 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileOut' }
+              example: { email: elif@ornek.com, risk_profile: balanced, budget: 50000, quiet_hours: { start: '22:30', end: '08:00' }, daily_push_limit: 5 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { description: Doğrulama hatası }
+
+  # ---------------------------------------------------------------- portfolio (Kişi 2)
+  /portfolio:
+    get:
+      tags: [portfolio]
+      summary: Kullanıcının pozisyonları (açık ve kapanmış)
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [open, closed] } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Position' } }
+              example:
+                - { id: 12, code: THYAO, qty: 10, buy_price: 312.5, buy_date: '2026-10-07', sell_price: null, sell_date: null, signal_id: null }
+    post:
+      tags: [portfolio]
+      summary: '"Aldım" kaydı'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PositionCreate' }
+            example: { code: THYAO, qty: 10, buy_price: 312.5, buy_date: '2026-10-07', signal_id: null }
+      responses:
+        '201': { description: Oluşturuldu, content: { application/json: { schema: { $ref: '#/components/schemas/Position' } } } }
+        '422': { description: Doğrulama hatası (ör. gelecek tarih, qty ≤ 0) }
+
+  /portfolio/{id}:
+    patch:
+      tags: [portfolio]
+      summary: '"Sattım" kaydı'
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PositionSell' }
+            example: { sell_price: 330.0, sell_date: '2026-10-12' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Position' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { description: Satış tarihi alıştan önce olamaz }
+    delete:
+      tags: [portfolio]
+      summary: Kaydı sil
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses:
+        '204': { description: Silindi }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /watchlist:
+    get:
+      tags: [portfolio]
+      summary: İzleme listesindeki kodlar
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { type: string } }, example: [THYAO, IPB] } } }
+    post:
+      tags: [portfolio]
+      summary: İzlemeye al
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [code], properties: { code: { type: string } } }, example: { code: THYAO } } } }
+      responses: { '204': { description: Eklendi (zaten varsa da 204) } }
+
+  /watchlist/{code}:
+    delete:
+      tags: [portfolio]
+      summary: İzlemeden çıkar
+      parameters: [ { $ref: '#/components/parameters/Code' } ]
+      responses: { '204': { description: Silindi } }
+
+  # ---------------------------------------------------------------- signals (Kişi 2)
+  /signals:
+    get:
+      tags: [signals]
+      summary: Kullanıcının sinyalleri (risk profiline göre süzülmüş)
+      parameters: [ { name: status, in: query, schema: { type: string, enum: [open, closed] } } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Signal' } }
+              example:
+                - { id: 41, code: THYAO, side: buy, horizon: 5, confidence: 72, suggested_qty: 15, stop_level: 296.0, created_at: '2026-10-09T19:00:00Z', outcome: null }
+
+  /signals/track-record:
+    get:
+      tags: [signals]
+      summary: Sinyal sicili (Aşama 2)
+      responses: { '200': { description: OK } }
+
+  /devices/push-token:
+    post:
+      tags: [signals]
+      summary: Expo push token kaydı
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [token, platform], properties: { token: { type: string }, platform: { type: string, enum: [ios, android] } } }
+            example: { token: 'ExponentPushToken[xxxx]', platform: ios }
+      responses: { '204': { description: Kaydedildi } }
+
+  /backtest/summary:
+    get:
+      tags: [assets]
+      summary: Model ve baseline metrikleri (model_errors; veri Kişi 1)
+      responses: { '200': { description: OK } }
+
+  # ---------------------------------------------------------------- ai (Kişi 3 — uygulandı: backend/app/ai/router.py)
+  /ai/chat:
+    post:
+      tags: [ai]
+      summary: Asistan sohbeti — Accept text/event-stream ise akış, değilse tek parça JSON
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChatRequest' }
+            example:
+              messages: [ { role: user, content: 'RSI nedir?' } ]
+              context: { screen: asset_detail, code: THYAO, horizon: 5 }
+      responses:
+        '200':
+          description: |
+            text/event-stream: satır satır `data: {"delta": "..."}`, son olay `data: {"done": true, "sources": [...]}`.
+            Korkuluk bir ihlal yakalarsa son olayda `"replace": "<düzeltilmiş tam metin>"` bulunur.
+            Sağlayıcı hatasında `data: {"error": "...", "done": true}`.
+          content:
+            text/event-stream: { schema: { type: string } }
+            application/json:
+              schema: { type: object, properties: { reply: { type: string } } }
+              example: { reply: 'RSI (Göreceli Güç Endeksi), son 14 gündeki yükseliş ve düşüşlerin gücünü 0–100 arasında ölçer.' }
+        '422': { description: Doğrulama hatası (ör. son mesaj kullanıcıdan değil, görsel 6 MB'tan büyük) }
+
+  /ai/chart-read:
+    post:
+      tags: [ai]
+      summary: Grafik okuma — görüntü (+ biliniyorsa kod) → yapılandırılmış yorum
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, description: 'data:image/(png|jpeg|webp|heic);base64,... — en fazla 6 MB' }
+                code: { type: [string, 'null'], description: Biliniyorsa son 120 günün verisi ve analiz isteme eklenir }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChartRead' }
+              example:
+                trend: up
+                supports: [285.5, 298.0]
+                resistances: [320.0, 335.0]
+                pattern: Yükselen kanal
+                indicators_note: RSI 58 ile nötr-pozitif bölgede.
+                summary: Fiyat son 3 ayda yükselen bir kanal içinde hareket ediyor.
+                confidence_note: Sayısal veriyle karşılaştırıldı.
+        '422': { description: Görsel biçimi geçersiz ya da model görsel desteklemiyor }
+
+  # ---------------------------------------------------------------- eski iskelet (kaldırılacak)
+  /stocks:
+    get: { tags: [assets], deprecated: true, summary: 'Eski sahte uç — /assets kullanın', responses: { '200': { description: OK } } }
+  /stocks/{symbol}/analysis:
+    get:
+      tags: [assets]
+      deprecated: true
+      summary: 'Eski sahte uç — /assets/{code}/analysis kullanın'
+      parameters: [ { name: symbol, in: path, required: true, schema: { type: string } } ]
+      responses: { '200': { description: OK } }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT, description: Supabase access token }
+
+  parameters:
+    Code: { name: code, in: path, required: true, schema: { type: string, maxLength: 16 }, example: THYAO }
+
+  responses:
+    NotFound: { description: Bulunamadı, content: { application/json: { example: { detail: Veri bulunamadı } } } }
+    Unauthorized: { description: Giriş yok veya token geçersiz, content: { application/json: { example: { detail: Not authenticated } } } }
+
+  schemas:
+    AssetType:
+      type: string
+      enum: [stock, fund, index]
+      description: index yalnızca XU100 içindir; tahmin, senaryo ve sinyal üretilmez (db_schema v0.2).
+    Direction: { type: string, enum: [up, down, flat] }
+    Horizon: { type: integer, enum: [1, 5, 20], description: Kısa vadeli tahmin ufukları (iş günü). 30/120 yalnızca senaryolarda. }
+    Risk: { type: string, enum: [low, medium, high] }
+    Regime: { type: string, enum: [trend, range, high_vol], description: Kişi 2'nin karar motoru (app/models/decision.py) }
+
+    AssetListItem:
+      type: object
+      required: [code, name, type, last_price, change_pct]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        type: { $ref: '#/components/schemas/AssetType' }
+        sector: { type: [string, 'null'], description: 'Hisse: sektör, fon: fon türü' }
+        last_price: { type: number }
+        change_pct: { type: number, description: Son kapanışın bir önceki kapanışa göre yüzde değişimi }
+
+    PricePoint:
+      type: object
+      required: [date, close]
+      properties:
+        date: { type: string, format: date }
+        open: { type: [number, 'null'] }
+        high: { type: [number, 'null'] }
+        low: { type: [number, 'null'] }
+        close: { type: number }
+        adj_close: { type: [number, 'null'] }
+        volume: { type: [integer, 'null'] }
+
+    ForecastBand:
+      type: object
+      required: [model, horizon, p10, p90]
+      properties:
+        model: { type: string, description: 'ensemble, timesfm, chronos, naive, naive_drift, ma, arima' }
+        horizon: { type: integer, enum: [1, 5, 20, 30, 120] }
+        p10: { type: number }
+        p50: { type: [number, 'null'], description: 120 günde null (nokta tahmin yok) }
+        p90: { type: number }
+
+    Scenario:
+      type: object
+      required: [horizon, bear, base, bull]
+      properties:
+        horizon: { type: integer, enum: [30, 120] }
+        bear: { type: number }
+        base: { type: number }
+        bull: { type: number }
+
+    Forecast:
+      type: object
+      required: [code, run_date, bands, scenarios]
+      properties:
+        code: { type: string }
+        run_date: { type: string, format: date }
+        bands: { type: array, items: { $ref: '#/components/schemas/ForecastBand' } }
+        scenarios: { type: array, items: { $ref: '#/components/schemas/Scenario' } }
+
+    Analysis:
+      type: object
+      description: analysis tablosundaki low/mid/high alanları "range" nesnesinde gruplanır; comment ai_explanations.text'tir.
+      required: [code, run_date, horizon, range, direction, confidence, risk]
+      properties:
+        code: { type: string }
+        run_date: { type: string, format: date }
+        horizon: { $ref: '#/components/schemas/Horizon' }
+        range:
+          type: object
+          properties: { low: { type: number }, mid: { type: number }, high: { type: number } }
+        direction: { $ref: '#/components/schemas/Direction' }
+        confidence: { type: integer, minimum: 0, maximum: 100 }
+        risk: { $ref: '#/components/schemas/Risk' }
+        regime: { anyOf: [ { $ref: '#/components/schemas/Regime' }, { type: 'null' } ] }
+        weights: { type: [object, 'null'], additionalProperties: { type: number } }
+        indicators: { type: [object, 'null'], additionalProperties: true, description: 'rsi, macd_hist, ma20_above_ma50, atr_pct ...' }
+        comment: { type: [string, 'null'], description: Gece uzman yorumu (yoksa null) }
+
+    QuietHours:
+      type: object
+      required: [start, end]
+      properties:
+        start: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$', example: '22:30' }
+        end: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$', example: '08:00' }
+
+    ProfileOut:
+      type: object
+      required: [email, risk_profile, budget, quiet_hours, daily_push_limit]
+      properties:
+        email: { type: string }
+        risk_profile: { type: string, enum: [cautious, balanced, aggressive] }
+        budget: { type: [number, 'null'], description: 'TL; null = girilmemiş' }
+        quiet_hours: { anyOf: [ { $ref: '#/components/schemas/QuietHours' }, { type: 'null' } ] }
+        daily_push_limit: { type: [integer, 'null'] }
+
+    ProfileUpdate:
+      type: object
+      description: Yalnızca gönderilen alanlar güncellenir. Bir alanı silmek için null gönderin.
+      properties:
+        risk_profile: { type: [string, 'null'], enum: [cautious, balanced, aggressive, null] }
+        budget: { type: [number, 'null'], minimum: 0 }
+        quiet_hours: { anyOf: [ { $ref: '#/components/schemas/QuietHours' }, { type: 'null' } ] }
+        daily_push_limit: { type: [integer, 'null'], minimum: 0, maximum: 50 }
+
+    PositionCreate:
+      type: object
+      required: [code, qty, buy_price, buy_date]
+      properties:
+        code: { type: string }
+        qty: { type: number, exclusiveMinimum: 0 }
+        buy_price: { type: number, exclusiveMinimum: 0 }
+        buy_date: { type: string, format: date }
+        signal_id: { type: [integer, 'null'] }
+
+    PositionSell:
+      type: object
+      required: [sell_price, sell_date]
+      properties:
+        sell_price: { type: number, exclusiveMinimum: 0 }
+        sell_date: { type: string, format: date }
+
+    Position:
+      allOf:
+        - $ref: '#/components/schemas/PositionCreate'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: integer }
+            sell_price: { type: [number, 'null'] }
+            sell_date: { type: [string, 'null'], format: date }
+
+    Signal:
+      type: object
+      required: [id, code, side, horizon, confidence, created_at]
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        side: { type: string, enum: [buy, sell], description: 'Arayüzde "alım/satış yönlü model sinyali" olarak gösterilir' }
+        horizon: { type: integer, enum: [1, 5, 20, 30] }
+        confidence: { type: integer, minimum: 0, maximum: 100 }
+        suggested_qty: { type: [number, 'null'] }
+        stop_level: { type: [number, 'null'] }
+        created_at: { type: string, format: date-time }
+        outcome:
+          type: [object, 'null']
+          description: Ufuk dolunca doldurulur
+          properties: { realized: { type: number }, hit: { type: boolean } }
+
+    ChatRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role: { type: string, enum: [user, assistant] }
+              content: { type: string, minLength: 1, maxLength: 4000 }
+        image: { type: [string, 'null'], description: Ekran görüntüsü / fotoğraf (data URI, en fazla 6 MB) }
+        context:
+          type: [object, 'null']
+          description: Balonun açıldığı ekran; code varsa o varlığın analysis satırı isteme eklenir
+          properties:
+            screen: { type: string, enum: [home, markets, portfolio, settings, asset_detail] }
+            code: { type: [string, 'null'] }
+            horizon: { $ref: '#/components/schemas/Horizon' }
+
+    ChartRead:
+      type: object
+      required: [trend, supports, resistances, summary, confidence_note]
+      properties:
+        trend: { $ref: '#/components/schemas/Direction' }
+        supports: { type: array, items: { type: number }, maxItems: 5 }
+        resistances: { type: array, items: { type: number }, maxItems: 5 }
+        pattern: { type: [string, 'null'] }
+        indicators_note: { type: [string, 'null'] }
+        summary: { type: string }
+        confidence_note: { type: string }

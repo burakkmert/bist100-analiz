@@ -4,18 +4,20 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { captureRef } from 'react-native-view-shot';
 
 import { useAnalysis, useAsset, useForecast, useHistory } from '@/api/assets';
-import type { Analysis, Horizon } from '@/api/types';
+import type { Analysis, AssetType, Horizon, Regime } from '@/api/types';
 import { AnimatedBackground } from '@/components/AnimatedBackground';
 import { PriceChart, type ChartMode, type Range } from '@/components/charts/PriceChart';
 import { ScenarioChart } from '@/components/charts/ScenarioChart';
 import { AppText, Badge, Button, Chips, Disclaimer, GlassCard, GlassIcon, Skeleton, withAlpha, type Tone } from '@/components/ui';
 import { formatPct, formatPrice } from '@/lib/format';
+import { useChartRead } from '@/store/chartRead';
 import { useWatchlist } from '@/store/watchlist';
 import { radius } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -30,7 +32,7 @@ const RISK: Record<Analysis['risk'], { label: string; tone: Tone }> = {
   medium: { label: 'Orta risk', tone: 'warn' },
   high: { label: 'Yüksek risk', tone: 'down' },
 };
-const REGIME: Record<string, string> = { trend: 'Trend', yatay: 'Yatay piyasa', oynak: 'Oynak piyasa' };
+const REGIME: Record<Regime, string> = { trend: 'Trend', range: 'Yatay piyasa', high_vol: 'Oynak piyasa' };
 
 export default function AssetDetail() {
   const { code: raw } = useLocalSearchParams<{ code: string }>();
@@ -43,6 +45,24 @@ export default function AssetDetail() {
   const [horizon, setHorizon] = useState<Horizon>(5);
   const [scenarioH, setScenarioH] = useState<30 | 120>(30);
   const [w, setW] = useState(0);
+  const chartRef = useRef<View>(null);
+  const [capturing, setCapturing] = useState(false);
+
+  // Grafiği yapay zekâya yorumlat: görünen grafiğin görüntüsünü al, grafik okuma ekranını aç
+  async function interpretChart() {
+    if (!chartRef.current || capturing) return;
+    setCapturing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    try {
+      const uri = await captureRef(chartRef, { format: 'jpg', quality: 0.85, result: 'data-uri' });
+      useChartRead.getState().set(uri, code, 'app');
+      router.push('/chart-read');
+    } catch {
+      router.push(`/chart-read?code=${code}`);
+    } finally {
+      setCapturing(false);
+    }
+  }
 
   const asset = useAsset(code);
   const history = useHistory(code);
@@ -118,6 +138,19 @@ export default function AssetDetail() {
                 accessibilityLabel="Zaman aralığı"
                 options={(['1A', '3A', '1Y', '5Y'] as Range[]).map((r) => ({ value: r, label: r }))}
               />
+              <View style={styles.chartActions}>
+              <Pressable
+                onPress={interpretChart}
+                disabled={!history.data || capturing}
+                accessibilityLabel="Grafiği yapay zekâya yorumlat"
+                hitSlop={8}
+                style={[styles.interpretBtn, { borderColor: p.accent, backgroundColor: p.accentSoft, opacity: history.data ? 1 : 0.5 }]}
+              >
+                <Ionicons name="sparkles-outline" size={14} color={p.accent} />
+                <AppText variant="caption" color="accent">
+                  {capturing ? '…' : 'Yorumla'}
+                </AppText>
+              </Pressable>
               {type === 'stock' ? (
                 <Pressable
                   onPress={() => {
@@ -131,9 +164,11 @@ export default function AssetDetail() {
                   <Ionicons name={mode === 'line' ? 'bar-chart-outline' : 'pulse-outline'} size={16} color={p.textMuted} />
                 </Pressable>
               ) : null}
+              </View>
             </View>
 
-            <View onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+            {/* collapsable={false}: Android'de görüntüsü alınabilsin diye görünüm birleştirilmez */}
+            <View ref={chartRef} collapsable={false} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
               {history.data && w > 0 ? (
                 <PriceChart history={history.data} range={range} mode={mode} type={type} width={w} band={band} />
               ) : (
@@ -282,7 +317,7 @@ function RoundButton({
   );
 }
 
-function AnalysisBlock({ an, type }: { an: Analysis; type: 'stock' | 'fund' }) {
+function AnalysisBlock({ an, type }: { an: Analysis; type: AssetType }) {
   const p = useTheme();
   const d = DIRECTION[an.direction];
   const r = RISK[an.risk];
@@ -319,7 +354,7 @@ function AnalysisBlock({ an, type }: { an: Analysis; type: 'stock' | 'fund' }) {
 
       <View style={styles.badges}>
         <Badge label={r.label} tone={r.tone} />
-        <Badge label={REGIME[an.regime] ?? an.regime} />
+        {an.regime ? <Badge label={REGIME[an.regime] ?? an.regime} /> : null}
       </View>
 
       <AppText color="textMuted">
@@ -336,7 +371,7 @@ function AnalysisBlock({ an, type }: { an: Analysis; type: 'stock' | 'fund' }) {
           Model ağırlıkları
         </AppText>
         <View style={[styles.weights, { backgroundColor: p.inputFill }]}>
-          {Object.entries(an.weights).map(([k, v], i) => (
+          {Object.entries(an.weights ?? {}).map(([k, v], i) => (
             <View
               key={k}
               style={{ flex: v, backgroundColor: i === 0 ? p.accent : p.textFaint, opacity: i === 0 ? 0.85 : 0.6 }}
@@ -344,7 +379,7 @@ function AnalysisBlock({ an, type }: { an: Analysis; type: 'stock' | 'fund' }) {
           ))}
         </View>
         <View style={styles.rowBetween}>
-          {Object.entries(an.weights).map(([k, v]) => (
+          {Object.entries(an.weights ?? {}).map(([k, v]) => (
             <AppText key={k} variant="caption" color="textFaint">
               {k === 'timesfm' ? 'TimesFM' : k === 'chronos' ? 'Chronos-2' : k} %{Math.round(v * 100)}
             </AppText>
@@ -367,7 +402,7 @@ function AnalysisSkeleton() {
 }
 
 function Indicators({ an }: { an: Analysis }) {
-  const ind = an.indicators;
+  const ind: NonNullable<Analysis['indicators']> = an.indicators ?? {};
   const rsi = ind.rsi ?? 0;
   const items: { label: string; value: string; note: string; tone: Tone }[] = [
     {
@@ -439,7 +474,17 @@ const styles = StyleSheet.create({
   priceRow: { gap: 6 },
   priceMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 
-  chartControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  chartControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 8 },
+  chartActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  interpretBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 30,
+    paddingHorizontal: 10,
+    borderRadius: radius.pill,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
   modeBtn: {
     width: 34,
     height: 30,

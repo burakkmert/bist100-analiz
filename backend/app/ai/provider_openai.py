@@ -13,12 +13,16 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import os
+import time
 from typing import AsyncIterator
 
 import httpx
 
 from .provider import register
+
+log = logging.getLogger("app.ai.gemini")
 
 
 class OpenAICompatProvider:
@@ -137,8 +141,39 @@ def gemini_text(payload: dict) -> str:
     return "".join(out)
 
 
+# Kotası dolan modeller: {model: tekrar denenebileceği zaman (epoch sn)}. Süreç boyunca paylaşılır
+# (get_provider her istekte yeni nesne üretir, bu yüzden modül düzeyinde tutulur).
+_GEMINI_COOLDOWN: dict[str, float] = {}
+_SWITCH_STATUSES = {404, 429, 500, 502, 503, 504}
+
+
+# Zaman aşımı istisnaları (testlerde httpx taklit edilebildiği için getattr)
+_TIMEOUTS: tuple[type[BaseException], ...] = (TimeoutError,) + tuple(
+    t for t in (getattr(httpx, "TimeoutException", None),) if t
+)
+
+
+def _cooldown_seconds(status: int, body: str) -> float:
+    """Hangi modeli ne kadar süre atlayacağımız."""
+    if status == 429:
+        return 6 * 3600 if "PerDay" in body else 65  # günlük kota → saatlerce; dakikalık → ~1 dk
+    if status == 404:
+        return 24 * 3600  # model yok/erişilemiyor
+    return 30  # 5xx: geçici yoğunluk
+
+
+def _parse_models(value: str | None, default: str) -> list[str]:
+    models = [m.strip() for m in (value or default).split(",") if m.strip()]
+    return list(dict.fromkeys(models))  # tekrarları at, sırayı koru
+
+
 class GeminiProvider:
     """Google Gemini — Google'ın kendi API'si (generateContent). Ücretsiz katmanı var.
+
+    Model sırası: GEMINI_MODEL virgülle birden çok model alabilir. Ücretsiz katmanda kota model başına
+    sayıldığı için, bir model "kota doldu" (429), "bulunamadı" (404) ya da "yoğun" (5xx) derse otomatik
+    olarak sıradakine geçilir; kotası dolan model bir süre atlanır.
+        GEMINI_MODEL=gemini-3.5-flash,gemini-3.8-flash,gemini-3.1-flash-lite
 
     Not: OpenAI uyumlu uç (/v1beta/openai) bazı yeni anahtar türlerinde 404 verdiği için kendi API kullanılır.
     Ücretsiz katmanda gönderilen içerik Google tarafından ürün geliştirmede kullanılabilir; kişisel veri göndermeyin.
@@ -150,15 +185,30 @@ class GeminiProvider:
         key = os.getenv("GEMINI_API_KEY", "")
         if not key:
             raise ValueError("gemini: GEMINI_API_KEY tanımlı değil (backend/.env).")
-        self.model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-        self.vision_model = os.getenv("GEMINI_VISION_MODEL", self.model)
+        self.models = _parse_models(os.getenv("GEMINI_MODEL"), "gemini-3.5-flash")
+        self.vision_models = _parse_models(os.getenv("GEMINI_VISION_MODEL"), ",".join(self.models))
+        self.model = self.models[0]  # geriye uyumluluk
+        self.last_model: str | None = None  # son başarılı çağrıda kullanılan model
         self.supports_images = True
         self.temperature = 0.3
         self._client = httpx.AsyncClient(
             base_url=os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta"),
-            headers={"x-goog-api-key": key},
-            timeout=httpx.Timeout(60.0, connect=10.0),
+            # Anahtar adres parametresiyle (?key=) gönderilir: bazı yeni anahtar türleri (AQ. ile başlayanlar)
+            # x-goog-api-key başlığıyla 404 döndürüyor, ?key= ile çalışıyor.
+            params={"key": key},
+            timeout=httpx.Timeout(90.0, connect=10.0),
         )
+
+    @staticmethod
+    def _candidates(models: list[str]) -> list[str]:
+        now = time.time()
+        ready = [m for m in models if _GEMINI_COOLDOWN.get(m, 0) <= now]
+        return ready or models  # hepsi beklemedeyse yine de sırayla dene (kota sıfırlanmış olabilir)
+
+    @staticmethod
+    def _mark(model: str, status: int, body: str) -> None:
+        _GEMINI_COOLDOWN[model] = time.time() + _cooldown_seconds(status, body)
+        log.warning("Gemini %s atlanıyor (HTTP %s); sıradaki modele geçiliyor", model, status)
 
     def _body(self, system: str, messages: list[dict], images: list[bytes] | None) -> dict:
         return {
@@ -168,24 +218,60 @@ class GeminiProvider:
         }
 
     async def complete(self, system: str, messages: list[dict], images: list[bytes] | None = None) -> str:
-        model = self.vision_model if images else self.model
-        r = await self._client.post(f"/models/{model}:generateContent", json=self._body(system, messages, images))
-        r.raise_for_status()
-        return gemini_text(r.json())
+        """Sırayla modelleri dener. Toplam süre GEMINI_TOTAL_TIMEOUT'u (vars. 75 sn) aşmaz; böylece
+        telefon beklemeyi kesmeden önce ya cevap ya da anlaşılır bir hata döner. Takılan (zaman aşımı)
+        model de kota dolmuş gibi kısa süre atlanır ve sıradakine geçilir."""
+        body = self._body(system, messages, images)
+        last_error: Exception | None = None
+        deadline = time.monotonic() + float(os.getenv("GEMINI_TOTAL_TIMEOUT", "75"))
+        per_try = float(os.getenv("GEMINI_TRY_TIMEOUT", "40"))
+        for model in self._candidates(self.vision_models if images else self.models):
+            left = deadline - time.monotonic()
+            if left < 5:
+                break
+            try:
+                r = await self._client.post(f"/models/{model}:generateContent", json=body, timeout=min(per_try, left))
+            except _TIMEOUTS as e:
+                self._mark(model, 504, "timeout")
+                last_error = e
+                continue
+            if r.status_code in _SWITCH_STATUSES:
+                self._mark(model, r.status_code, r.text)
+                last_error = httpx.HTTPStatusError(f"HTTP {r.status_code}", request=r.request, response=r)
+                continue
+            r.raise_for_status()
+            self.last_model = model
+            log.info("Gemini yanıtı: %s%s", model, " (görselli)" if images else "")
+            return gemini_text(r.json())
+        if last_error is None:
+            last_error = TimeoutError("Gemini: süre doldu")
+        raise last_error
 
     async def stream(self, system: str, messages: list[dict]) -> AsyncIterator[str]:
-        url = f"/models/{self.model}:streamGenerateContent"
-        async with self._client.stream("POST", url, params={"alt": "sse"}, json=self._body(system, messages, None)) as r:
-            r.raise_for_status()
-            async for line in r.aiter_lines():
-                if not line.startswith("data:"):
-                    continue
-                try:
-                    text = gemini_text(json.loads(line[5:].strip()))
-                except json.JSONDecodeError:
-                    continue
-                if text:
-                    yield text
+        body = self._body(system, messages, None)
+        last_error: Exception | None = None
+        for model in self._candidates(self.models):
+            url = f"/models/{model}:streamGenerateContent"
+            async with self._client.stream("POST", url, params={"alt": "sse"}, json=body) as r:
+                if r.status_code in _SWITCH_STATUSES:
+                    text = (await r.aread()).decode("utf-8", "replace")
+                    self._mark(model, r.status_code, text)
+                    last_error = httpx.HTTPStatusError(f"HTTP {r.status_code}", request=r.request, response=r)
+                    continue  # henüz hiç metin gönderilmedi; sıradaki modeli dene
+                r.raise_for_status()
+                self.last_model = model
+                async for line in r.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    try:
+                        text = gemini_text(json.loads(line[5:].strip()))
+                    except json.JSONDecodeError:
+                        continue
+                    if text:
+                        yield text
+                return
+        assert last_error is not None
+        raise last_error
 
 
 class OllamaProvider(OpenAICompatProvider):

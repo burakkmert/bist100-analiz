@@ -45,13 +45,13 @@ export const dark: Palette = {
   // Koyu lacivertten koyu griye
   bgGradient: ['#0A1838', '#0F1C35', '#161B26', '#1B1D22'],
   bgSweep: ['rgba(20,45,110,0.9)', 'rgba(10,24,56,0)', 'rgba(40,44,52,0.9)'],
-  bgVeil: 'rgba(8,14,30,0.18)',
+  bgVeil: 'rgba(8,14,30,0.08)',
   blobs: [
-    { color: '#2F5BEA', opacity: 0.7 }, // kraliyet mavisi
-    { color: '#0E9AB5', opacity: 0.5 }, // camgöbeği
-    { color: '#6A3FE0', opacity: 0.5 }, // menekşe
-    { color: '#1B2E6B', opacity: 0.85 }, // derin lacivert
-    { color: '#3E4A5E', opacity: 0.6 }, // dumanlı gri
+    { color: '#3567F0', opacity: 0.62 }, // kraliyet mavisi
+    { color: '#14A9C6', opacity: 0.45 }, // camgöbeği
+    { color: '#7448EA', opacity: 0.48 }, // menekşe
+    { color: '#2A4FC4', opacity: 0.55 }, // gece mavisi (önceki lacivert zeminde kayboluyordu)
+    { color: '#56657E', opacity: 0.5 }, // dumanlı gri
   ],
 
   text: '#F1F4FA',
@@ -85,7 +85,7 @@ export const light: Palette = {
   // sıra ORBITS ile eşleşir: [sol üst, sağ üst, sol alt, sağ alt, orta].
   bgGradient: ['#6B8DD3', '#8AA3C4', '#86ACB4', '#7E9CBF'],
   bgSweep: ['rgba(182,116,200,0.55)', 'rgba(134,172,180,0)', 'rgba(197,201,206,0.6)'],
-  bgVeil: 'rgba(255,255,255,0.10)',
+  bgVeil: 'rgba(255,255,255,0.04)',
   blobs: [
     { color: '#5A84D6', opacity: 0.95 }, // mavi (sol üst)
     { color: '#B872C9', opacity: 0.9 }, // orkide / pembe-mor (sağ üst)
@@ -95,13 +95,13 @@ export const light: Palette = {
   ],
 
   text: '#0E1526',
-  textMuted: 'rgba(14,21,38,0.62)',
-  textFaint: 'rgba(14,21,38,0.38)',
+  textMuted: 'rgba(14,21,38,0.72)', // cam daha saydam olduğu için biraz koyulaştırıldı
+  textFaint: 'rgba(14,21,38,0.5)',
 
   glassTint: 'light',
-  glassFill: 'rgba(255,255,255,0.55)',
-  glassFillStrong: 'rgba(255,255,255,0.78)',
-  glassBorder: 'rgba(255,255,255,0.95)',
+  glassFill: 'rgba(255,255,255,0.26)', // koyu temadaki gibi zemin görünsün
+  glassFillStrong: 'rgba(255,255,255,0.42)',
+  glassBorder: 'rgba(255,255,255,0.7)',
   glassHighlight: 'rgba(255,255,255,1)',
   glassShadow: '#8A93A3',
 

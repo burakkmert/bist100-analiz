@@ -1,17 +1,21 @@
 // Piyasalar: Hisse / Fon, arama ve tarayıcı filtreleri (yön, en az güven).
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useAssets, useScreener } from '@/api/assets';
 import type { Direction } from '@/api/types';
 import { AssetRow } from '@/components/AssetRow';
 import { Segmented } from '@/components/Segmented';
 import { AppText, Chips, GlassCard, Screen, Skeleton, TextField } from '@/components/ui';
+import { useTheme } from '@/theme/ThemeProvider';
 
 type DirFilter = 'all' | Direction;
 type ConfFilter = 0 | 60 | 70;
 
 export default function Markets() {
+  const p = useTheme();
   const [tab, setTab] = useState<'stock' | 'fund'>('stock');
   const [q, setQ] = useState('');
   const [debounced, setDebounced] = useState('');
@@ -36,7 +40,20 @@ export default function Markets() {
 
   return (
     <Screen tabBarSpace>
-      <AppText variant="title">Piyasalar</AppText>
+      <View style={styles.titleRow}>
+        <AppText variant="title">Piyasalar</AppText>
+        <Pressable
+          onPress={() => router.push('/chart-read')}
+          accessibilityLabel="Grafik yükleyip yorumlat"
+          hitSlop={8}
+          style={[styles.chartBtn, { backgroundColor: p.accentSoft, borderColor: p.accent }]}
+        >
+          <Ionicons name="scan-outline" size={16} color={p.accent} />
+          <AppText variant="caption" color="accent">
+            Grafik oku
+          </AppText>
+        </Pressable>
+      </View>
       <Segmented
         value={tab}
         onChange={setTab}
@@ -109,6 +126,16 @@ export default function Markets() {
 }
 
 const styles = StyleSheet.create({
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  chartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+  },
   filters: { gap: 10 },
   filterRow: { gap: 6 },
   filterLabel: { marginLeft: 4 },
