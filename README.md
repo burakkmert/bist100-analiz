@@ -61,6 +61,8 @@ docker compose up --build     # PostgreSQL 16 + FastAPI; şema göçleri otomati
   sözleşmedeki örnek yanıtları döndürür (yanıt başlığında `X-Mock: 1`). Gerçek yazılmış uçlar (`/me/profile`,
   `/ai/*`) her zaman gerçektir; bir uç gerçek olarak yazıldıkça mock'tan kendiliğinden çıkar. Swagger'da
   "mock" etiketiyle görünür. Gerçek veriyle çalışmak için `MOCK=0`.
+  Piyasa verisi uçları (`/assets`, `/assets/{code}/history|forecast|analysis`, `/screener`) gerçek
+  veritabanından yalnızca `MOCK=0` iken okunur; Kişi 1'in verisi yüklenince `MOCK=0` yapın.
 
 ### Testler ve CI
 
