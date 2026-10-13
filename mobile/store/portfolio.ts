@@ -11,7 +11,7 @@ export interface Position {
   qty: number;
   buy_price: number;
   buy_date: string; // YYYY-MM-DD
-  signal_id: string | null;
+  signal_id: number | null;
   sell_price: number | null;
   sell_date: string | null;
 }
