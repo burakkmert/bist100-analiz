@@ -8,7 +8,7 @@ import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 
-import type { AssetType, ForecastBand, PricePoint } from '@/api/types';
+import { mid as bandMidOf, type AssetType, type ForecastBand, type PricePoint } from '@/api/types';
 import { AppText } from '@/components/ui';
 import { formatAxis, formatDate, formatPct, formatPrice } from '@/lib/format';
 import { font } from '@/theme/colors';
@@ -221,9 +221,9 @@ const StaticChart = memo(function StaticChart({ bars, mode, width, height, geo, 
       const t = s / steps;
       const x = lastX + futureW * t;
       const spread = Math.sqrt(t);
-      const m = last + (band.p50 - last) * t;
-      upper.push(`${x.toFixed(1)},${yAt(m + (band.p90 - band.p50) * spread).toFixed(1)}`);
-      lower.push(`${x.toFixed(1)},${yAt(m - (band.p50 - band.p10) * spread).toFixed(1)}`);
+      const m = last + (bandMidOf(band) - last) * t;
+      upper.push(`${x.toFixed(1)},${yAt(m + (band.p90 - bandMidOf(band)) * spread).toFixed(1)}`);
+      lower.push(`${x.toFixed(1)},${yAt(m - (bandMidOf(band) - band.p10) * spread).toFixed(1)}`);
       mid.push(`${s ? 'L' : 'M'}${x.toFixed(1)},${yAt(m).toFixed(1)}`);
     }
     bandArea = `M${upper.join(' L')} L${lower.reverse().join(' L')} Z`;

@@ -1,0 +1,5 @@
+[
+  {"has_signal": true, "watched": false, "analysis": {"code": "THYAO", "run_date": "2026-10-12", "horizon": 5, "direction": "up", "confidence": 68, "risk": "medium", "regime": "trend", "range": {"low": 298.2, "mid": 316.0, "high": 333.5}, "indicators": {"rsi": 58.2, "macd_hist": 0.4, "ma20_above_ma50": true, "atr_pct": 2.1}, "weights": {"timesfm": 0.6, "chronos": 0.4}}},
+  {"has_signal": false, "watched": true, "analysis": {"code": "ASELS", "run_date": "2026-10-12", "horizon": 5, "direction": "down", "confidence": 61, "risk": "high", "regime": "high_vol", "range": {"low": 139.4, "mid": 146.1, "high": 155.0}, "indicators": {"rsi": 44.0, "macd_hist": -0.8, "ma20_above_ma50": false, "atr_pct": 3.4}, "weights": {"timesfm": 0.55, "chronos": 0.45}}},
+  {"has_signal": false, "watched": false, "analysis": {"code": "GSP", "run_date": "2026-10-12", "horizon": 20, "direction": "up", "confidence": 82, "risk": "low", "regime": "trend", "range": {"low": 8.41, "mid": 8.52, "high": 8.6}, "indicators": {"rsi": 71.0, "atr_pct": 0.1}, "weights": {"timesfm": 0.5, "chronos": 0.5}}}
+]

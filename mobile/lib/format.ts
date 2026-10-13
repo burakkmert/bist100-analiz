@@ -1,8 +1,10 @@
 // Türkçe sayı/para biçimlendirme
+import type { AssetType } from '@/api/types';
+
 const nf2 = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const nf4 = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
 
-export const formatPrice = (v: number, type: 'stock' | 'fund' = 'stock') =>
+export const formatPrice = (v: number, type: AssetType = 'stock') =>
   type === 'fund' ? nf4.format(v) : nf2.format(v);
 export const formatTRY = (v: number) => `₺${nf2.format(v)}`;
 export const formatPct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}%${nf2.format(Math.abs(v))}`;
