@@ -4,7 +4,8 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
-export type RiskProfile = 'cautious' | 'balanced' | 'aggressive';
+import type { RiskProfile } from '@/api/types';
+export type { RiskProfile };
 
 interface SettingsState {
   themePreference: ThemePreference;

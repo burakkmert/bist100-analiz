@@ -12,7 +12,9 @@
 | `chat.py` | `/ai/chat` çekirdeği: RAG + bağlam + akış + korkuluk |
 | `chart_read.py` | `/ai/chart-read` çekirdeği: görüntü + veri → şemaya zorlanmış JSON |
 | `router.py` | FastAPI uçları |
-| `tests/` | 26 test |
+| `explain_job.py` | Gece uzman yorumları (22:00): sinyalli/izlenen varlıklara LLM, diğerlerine şablon; uydurma sayı içeren yorumu reddeder |
+| `eval/` | LLM sağlayıcı karşılaştırması (20 soru → tez tablosu) |
+| `tests/` | 32 test |
 
 ## Kişi 2 için entegrasyon
 ```python
@@ -44,4 +46,5 @@ Korkuluk bir ihlal yakalarsa son olay `{"done": true, "replace": "<düzeltilmiş
 ## Sıradaki
 - 6. hafta: 2–3 LLM adayıyla aynı 20 test sorusu → karşılaştırma tablosu → seçilen sağlayıcının adaptörü (`provider.register`).
 - `DbAnalysisSource` (Kişi 2'nin DB'si hazır olunca).
-- 10. hafta: `explain_job.py` (gece uzman yorumları).
+- `explain_job.py` için DB kaynağı/hedefi (Kişi 2'nin gece işi orkestrasyonu çağıracak):
+  `JsonSource`/`JsonSink` yerine analysis + signals + watchlist'ten okuyup ai_explanations'a yazan sürüm.

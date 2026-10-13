@@ -43,7 +43,13 @@ export function GlassCard({ children, style, padding = 16, radius = R.lg, strong
     >
       <View style={[styles.clip, { borderRadius: radius }]}>
         {USE_LIVE_BLUR ? (
-          <BlurView tint={p.name === 'dark' ? 'dark' : 'extraLight'} intensity={intensity} style={StyleSheet.absoluteFill} />
+          // Açık temada 'extraLight' camı süt beyazı yapıyordu; 'light' + biraz daha güçlü bulanıklık:
+          // zemin renkleri görünür, ama yazının arkası sakin kalır.
+          <BlurView
+            tint={p.name === 'dark' ? 'dark' : 'light'}
+            intensity={p.name === 'dark' ? intensity : intensity + 15}
+            style={StyleSheet.absoluteFill}
+          />
         ) : null}
 
         {/* Cam dolgusu */}
@@ -60,8 +66,8 @@ export function GlassCard({ children, style, padding = 16, radius = R.lg, strong
                     ? 'rgba(30,40,62,0.88)'
                     : 'rgba(28,38,60,0.62)'
                   : strong
-                    ? 'rgba(255,255,255,0.92)'
-                    : 'rgba(255,255,255,0.74)',
+                    ? 'rgba(255,255,255,0.7)'
+                    : 'rgba(255,255,255,0.52)', // Android: bulanıklık yok, okunurluk için iOS'tan biraz opak
             },
           ]}
         />
@@ -71,7 +77,7 @@ export function GlassCard({ children, style, padding = 16, radius = R.lg, strong
           colors={[p.glassHighlight, 'rgba(255,255,255,0)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 0.6 }}
-          style={[StyleSheet.absoluteFill, { opacity: p.name === 'dark' ? 0.18 : 0.55 }]}
+          style={[StyleSheet.absoluteFill, { opacity: p.name === 'dark' ? 0.18 : 0.35 }]}
           pointerEvents="none"
         />
 

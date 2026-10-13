@@ -13,8 +13,10 @@ import type {
   Horizon,
   PricePoint,
   Risk,
+  Regime,
   Signal,
 } from '@/api/types';
+import { mid } from '@/api/types';
 
 interface Meta {
   code: string;
@@ -23,28 +25,29 @@ interface Meta {
   start: number; // ~5 yıl önceki fiyat
   drift: number; // yıllık eğilim
   vol: number; // yıllık oynaklık
+  sector?: string;
 }
 
 export const ASSETS: Meta[] = [
-  { code: 'THYAO', name: 'Türk Hava Yolları', type: 'stock', start: 18, drift: 0.55, vol: 0.42 },
-  { code: 'ASELS', name: 'Aselsan', type: 'stock', start: 22, drift: 0.38, vol: 0.4 },
-  { code: 'BIMAS', name: 'BİM Birleşik Mağazalar', type: 'stock', start: 75, drift: 0.36, vol: 0.32 },
-  { code: 'KCHOL', name: 'Koç Holding', type: 'stock', start: 24, drift: 0.4, vol: 0.36 },
-  { code: 'TUPRS', name: 'Tüpraş', type: 'stock', start: 20, drift: 0.42, vol: 0.38 },
-  { code: 'EREGL', name: 'Ereğli Demir Çelik', type: 'stock', start: 12, drift: 0.22, vol: 0.37 },
-  { code: 'SISE', name: 'Şişecam', type: 'stock', start: 9, drift: 0.3, vol: 0.4 },
-  { code: 'AKBNK', name: 'Akbank', type: 'stock', start: 7, drift: 0.48, vol: 0.45 },
-  { code: 'GARAN', name: 'Garanti BBVA', type: 'stock', start: 10, drift: 0.5, vol: 0.44 },
-  { code: 'FROTO', name: 'Ford Otosan', type: 'stock', start: 140, drift: 0.34, vol: 0.35 },
-  { code: 'IPB', name: 'İş Portföy BIST Banka Endeksi Fonu', type: 'fund', start: 0.9, drift: 0.38, vol: 0.3 },
-  { code: 'TTE', name: 'İş Portföy BIST Teknoloji Ağırlıklı Fon', type: 'fund', start: 2.1, drift: 0.4, vol: 0.26 },
-  { code: 'AFT', name: 'Ak Portföy Yeni Teknolojiler Fonu', type: 'fund', start: 0.7, drift: 0.36, vol: 0.24 },
-  { code: 'MAC', name: 'Marmara Capital Hisse Fonu', type: 'fund', start: 4.0, drift: 0.38, vol: 0.27 },
-  { code: 'YAY', name: 'Yapı Kredi Yabancı Teknoloji Fonu', type: 'fund', start: 1.4, drift: 0.32, vol: 0.22 },
-  { code: 'GSP', name: 'Garanti Portföy Para Piyasası Fonu', type: 'fund', start: 1.0, drift: 0.42, vol: 0.02 },
+  { code: 'THYAO', name: 'Türk Hava Yolları', type: 'stock', sector: 'Ulaştırma', start: 18, drift: 0.55, vol: 0.42 },
+  { code: 'ASELS', name: 'Aselsan', type: 'stock', sector: 'Savunma', start: 22, drift: 0.38, vol: 0.4 },
+  { code: 'BIMAS', name: 'BİM Birleşik Mağazalar', type: 'stock', sector: 'Perakende', start: 75, drift: 0.36, vol: 0.32 },
+  { code: 'KCHOL', name: 'Koç Holding', type: 'stock', sector: 'Holding', start: 24, drift: 0.4, vol: 0.36 },
+  { code: 'TUPRS', name: 'Tüpraş', type: 'stock', sector: 'Enerji', start: 20, drift: 0.42, vol: 0.38 },
+  { code: 'EREGL', name: 'Ereğli Demir Çelik', type: 'stock', sector: 'Metal', start: 12, drift: 0.22, vol: 0.37 },
+  { code: 'SISE', name: 'Şişecam', type: 'stock', sector: 'Cam', start: 9, drift: 0.3, vol: 0.4 },
+  { code: 'AKBNK', name: 'Akbank', type: 'stock', sector: 'Bankacılık', start: 7, drift: 0.48, vol: 0.45 },
+  { code: 'GARAN', name: 'Garanti BBVA', type: 'stock', sector: 'Bankacılık', start: 10, drift: 0.5, vol: 0.44 },
+  { code: 'FROTO', name: 'Ford Otosan', type: 'stock', sector: 'Otomotiv', start: 140, drift: 0.34, vol: 0.35 },
+  { code: 'IPB', name: 'İş Portföy BIST Banka Endeksi Fonu', type: 'fund', sector: 'Hisse senedi', start: 0.9, drift: 0.38, vol: 0.3 },
+  { code: 'TTE', name: 'İş Portföy BIST Teknoloji Ağırlıklı Fon', type: 'fund', sector: 'Hisse senedi', start: 2.1, drift: 0.4, vol: 0.26 },
+  { code: 'AFT', name: 'Ak Portföy Yeni Teknolojiler Fonu', type: 'fund', sector: 'Değişken', start: 0.7, drift: 0.36, vol: 0.24 },
+  { code: 'MAC', name: 'Marmara Capital Hisse Fonu', type: 'fund', sector: 'Hisse senedi', start: 4.0, drift: 0.38, vol: 0.27 },
+  { code: 'YAY', name: 'Yapı Kredi Yabancı Teknoloji Fonu', type: 'fund', sector: 'Yabancı hisse', start: 1.4, drift: 0.32, vol: 0.22 },
+  { code: 'GSP', name: 'Garanti Portföy Para Piyasası Fonu', type: 'fund', sector: 'Para piyasası', start: 1.0, drift: 0.42, vol: 0.02 },
 ];
 
-export const BIST100_META: Meta = { code: 'XU100', name: 'BIST 100', type: 'stock', start: 1400, drift: 0.42, vol: 0.28 };
+export const BIST100_META: Meta = { code: 'XU100', name: 'BIST 100', type: 'index', start: 1400, drift: 0.42, vol: 0.28 };
 
 const TRADING_DAYS = 252;
 const HISTORY_DAYS = TRADING_DAYS * 5;
@@ -165,7 +168,7 @@ function listItem(m: Meta): AssetListItem {
   const h = genHistory(m.code);
   const last = h[h.length - 1].close;
   const prev = h[h.length - 2].close;
-  return { code: m.code, name: m.name, type: m.type, last_price: last, change_pct: Math.round(((last - prev) / prev) * 10000) / 100 };
+  return { code: m.code, name: m.name, type: m.type, sector: m.sector ?? null, last_price: last, change_pct: Math.round(((last - prev) / prev) * 10000) / 100 };
 }
 
 export function genAssets(type?: AssetType, q?: string): AssetListItem[] {
@@ -228,7 +231,7 @@ export function genForecast(code: string): Forecast {
   // modelin "görüşü": son 60 günlük eğilim + biraz gürültü, abartısız
   const mu = Math.log(last / closes[closes.length - 60]) / 60 * 0.4 + (r() - 0.5) * 0.002;
 
-  const band = (horizon: number, model = 'ensemble', bias = 0) => {
+  const band = (horizon: Horizon, model = 'ensemble', bias = 0) => {
     const m = (mu + bias) * horizon;
     const s = sigma * Math.sqrt(horizon);
     return {
@@ -240,7 +243,7 @@ export function genForecast(code: string): Forecast {
     };
   };
 
-  const bands = [1, 5, 20].flatMap((hz) => [
+  const bands = ([1, 5, 20] as const).flatMap((hz) => [
     band(hz),
     band(hz, 'timesfm', 0.0004),
     band(hz, 'chronos', -0.0003),
@@ -278,7 +281,7 @@ export function genAnalysis(code: string, horizon: Horizon): Analysis {
   const fc = genForecast(code).bands.find((b) => b.model === 'ensemble' && b.horizon === horizon)!;
   const r = rng(seedFrom(`${code}-${horizon}-an`));
 
-  const change = (fc.p50 - last) / last;
+  const change = (mid(fc) - last) / last;
   const width = (fc.p90 - fc.p10) / last;
   const direction: Direction = Math.abs(change) < width * 0.08 ? 'flat' : change > 0 ? 'up' : 'down';
   const rsiV = rsi(closes);
@@ -289,7 +292,7 @@ export function genAnalysis(code: string, horizon: Horizon): Analysis {
   const risk: Risk = atrPct < 1.6 ? 'low' : atrPct < 2.8 ? 'medium' : 'high';
   const agree = (direction === 'up') === ma20 > ma50 ? 12 : -6;
   const confidence = Math.round(Math.max(45, Math.min(88, 58 + agree + (r() - 0.5) * 20 - (risk === 'high' ? 6 : 0))));
-  const regime = Math.abs(ma20 - ma50) / last > 0.03 ? 'trend' : atrPct > 2.8 ? 'oynak' : 'yatay';
+  const regime: Regime = Math.abs(ma20 - ma50) / last > 0.03 ? 'trend' : atrPct > 2.8 ? 'high_vol' : 'range';
   const wT = Math.round((0.45 + r() * 0.2) * 100) / 100;
 
   const dirText = direction === 'up' ? 'hafif yükseliş' : direction === 'down' ? 'hafif düşüş' : 'yatay seyir';
@@ -302,7 +305,7 @@ export function genAnalysis(code: string, horizon: Horizon): Analysis {
     code,
     run_date: h[h.length - 1].date,
     horizon,
-    range: { low: fc.p10, mid: fc.p50, high: fc.p90 },
+    range: { low: fc.p10, mid: mid(fc), high: fc.p90 },
     direction,
     confidence,
     risk,
@@ -334,10 +337,10 @@ export function genSignals(): Signal[] {
     .filter(({ an }) => an.direction !== 'flat' && an.confidence >= 65)
     .sort((x, y) => y.an.confidence - x.an.confidence)
     .slice(0, 5)
-    .map(({ a, an }) => {
+    .map(({ a, an }, i) => {
       const last = listItem(a).last_price;
       return {
-        id: `${a.code}-${an.horizon}`,
+        id: i + 1, // BIGSERIAL
         code: a.code,
         side: an.direction === 'up' ? ('buy' as const) : ('sell' as const),
         horizon: an.horizon,

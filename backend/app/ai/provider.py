@@ -38,6 +38,10 @@ class FakeProvider:
     async def complete(self, system: str, messages: list[dict], images: list[bytes] | None = None) -> str:
         if '"trend"' in system and "JSON" in system:  # grafik okuma istemi
             return _FAKE_CHART_JSON
+        if "varlık yorumları yazan" in system:  # gece uzman yorumu istemi
+            body = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
+            lines = [l for l in body.splitlines() if l.startswith(("Ufuk:", "Güven skoru:", "%80"))]
+            return "Model özeti (FakeProvider): " + " ".join(lines)
         user = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
         return _fake_answer(system, user, has_image=bool(images))
 

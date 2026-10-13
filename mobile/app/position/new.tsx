@@ -59,7 +59,7 @@ export default function NewPosition() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       return;
     }
-    add({ code: asset.code, qty: qtyN, buy_price: priceN, buy_date: iso, signal_id: params.signal ?? null });
+    add({ code: asset.code, qty: qtyN, buy_price: priceN, buy_date: iso, signal_id: params.signal ? Number(params.signal) : null });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     router.back();
   }

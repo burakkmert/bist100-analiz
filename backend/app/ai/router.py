@@ -61,6 +61,22 @@ class ChartReadBody(BaseModel):
     code: str | None = None
 
 
+def friendly_error(e: Exception) -> tuple[int, str]:
+    """Sağlayıcı hatasını (HTTP kodu, kullanıcıya gösterilecek Türkçe mesaj) çiftine çevirir."""
+    if "Timeout" in type(e).__name__:
+        return 504, "Yapay zekâ zamanında yanıt vermedi. Biraz sonra tekrar deneyin."
+    status = getattr(getattr(e, "response", None), "status_code", None)
+    if status == 429:
+        return 429, "Ücretsiz kullanım sınırına ulaşıldı. Bir dakika sonra tekrar deneyin."
+    if status in (401, 403):
+        return 502, "API anahtarı geçersiz ya da eksik (backend/.env)."
+    if status == 404:
+        return 502, "Model bulunamadı ya da bu anahtarla kullanılamıyor (backend/.env → GEMINI_MODEL)."
+    if status in (500, 502, 503, 504):
+        return 503, "Yapay zekâ servisi şu an yoğun. Birkaç saniye sonra tekrar deneyin."
+    return 502, "Yanıt üretilemedi, biraz sonra tekrar deneyin."
+
+
 @router.post("/chat")
 async def chat(
     body: ChatBody,
@@ -98,16 +114,7 @@ async def chat(
         except ValueError as e:
             yield f"data: {json.dumps({'error': str(e), 'done': True}, ensure_ascii=False)}\n\n"
         except Exception as e:  # sağlayıcı hatası: ayrıntıyı istemciye sızdırma, sunucu günlüğüne yaz
-            status = getattr(getattr(e, "response", None), "status_code", None)
-            msg = (
-                "Ücretsiz kullanım sınırına ulaşıldı. Bir dakika sonra tekrar deneyin."
-                if status == 429
-                else "API anahtarı geçersiz ya da eksik (backend/.env)."
-                if status in (401, 403)
-                else "Model bulunamadı ya da bu anahtarla kullanılamıyor (backend/.env → GEMINI_MODEL)."
-                if status == 404
-                else "Yanıt üretilemedi, biraz sonra tekrar deneyin."
-            )
+            _, msg = friendly_error(e)
             logger.warning("AI sağlayıcı hatası: %r", e)
             yield f"data: {json.dumps({'error': msg, 'done': True}, ensure_ascii=False)}\n\n"
 
@@ -124,3 +131,7 @@ async def chart_read(
         return await read_chart(body.image, body.code, get_provider(), source)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
+    except Exception as e:  # sağlayıcı hatası → anlaşılır mesaj (önceden düz 500 dönüyordu)
+        code, msg = friendly_error(e)
+        logger.warning("AI grafik okuma hatası: %r", e)
+        raise HTTPException(status_code=code, detail=msg) from e

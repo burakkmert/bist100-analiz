@@ -18,7 +18,8 @@ _ADVICE = re.compile(
             _W + r"(almalısın(ız)?|satmalısın(ız)?|almanı(zı)? öneririm|satmanı(zı)? öneririm)(?![\w])",
             _W + r"(al(ın)?|sat(ın)?)\s*!",
             _W + r"alım fırsatı(nı)? kaçırma(yın)?",
-            _W + r"garanti(li)? (kazanç|getiri)",
+            # "garanti getiri" — ama "garanti getiri yoktur / sunmaz / veremem" gibi olumsuz cümleler hariç
+            _W + r"garanti(li)? (kazanç|getiri)(?![^.!?\n]{0,40}(yok|değil|olmaz|sunmaz|vermez|veremem|sağlamaz|bulunmaz|mümkün değil))",
         ]
     ),
     re.IGNORECASE,
