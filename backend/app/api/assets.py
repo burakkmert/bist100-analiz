@@ -35,6 +35,14 @@ def _fold(q: str) -> str:
     return q.translate(str.maketrans({"İ": "i", "I": "i", "ı": "i"})).lower()
 
 
+def _short_horizon(horizon: int) -> int:
+    """Kısa ufuk 1/5/20 olmalı. (Literal[1, 5, 20] kullanılamaz: sorgu parametresi metin olarak gelir
+    ve Pydantic Literal için "20" → 20 dönüşümü yapmaz; her istek 422 olurdu.)"""
+    if horizon not in SHORT_HORIZONS:
+        raise HTTPException(422, f"horizon {SHORT_HORIZONS} değerlerinden biri olmalı")
+    return horizon
+
+
 def _num(v: Any) -> float | None:
     return None if v is None else float(v)
 
@@ -219,10 +227,11 @@ def get_forecast(code: str, db: Session = Depends(get_db)):
 @router.get("/assets/{code}/analysis", response_model=Analysis, responses=NOT_FOUND)
 def get_analysis(
     code: str,
-    horizon: Literal[1, 5, 20] = 5,
+    horizon: int = Query(5, description="Kısa ufuk: 1, 5 veya 20 iş günü"),
     db: Session = Depends(get_db),
 ):
     code = code.upper()
+    horizon = _short_horizon(horizon)
     _asset_exists(db, code)
     r = (
         db.execute(
@@ -265,10 +274,11 @@ def screener(
     type: Literal["stock", "fund"] | None = None,
     direction: Literal["up", "down", "flat"] | None = None,
     min_conf: int = Query(0, ge=0, le=100),
-    horizon: Literal[1, 5, 20] = 5,
+    horizon: int = Query(5, description="Kısa ufuk: 1, 5 veya 20 iş günü"),
     db: Session = Depends(get_db),
 ):
     """Son gece çalışmasının analizine göre süzülmüş varlıklar; güven skoruna göre azalan sıralı."""
+    horizon = _short_horizon(horizon)
     rows = db.execute(
         text(
             """

@@ -190,3 +190,7 @@ def test_tarayici_suzgec_ve_siralama(client, seeded, h):
     assert strict == [STOCK]
     funds = [a["code"] for a in _ours(client.get("/screener?type=fund", headers=h).json())]
     assert funds == [FUND]
+    # horizon açıkça verilince de çalışmalı (sorgu parametresi metin olarak gelir)
+    assert client.get("/screener?horizon=5", headers=h).status_code == 200
+    assert client.get("/screener?horizon=20", headers=h).json() == []  # 20 günlük analiz yok
+    assert client.get("/screener?horizon=7", headers=h).status_code == 422
