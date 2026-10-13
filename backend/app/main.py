@@ -38,6 +38,14 @@ app.include_router(profile.router)
 app.include_router(ai_router)
 
 
+# MOCK=1: sözleşmede olup henüz yazılmamış uçlar openapi.yaml örnekleriyle cevap verir.
+# Gerçek router'lardan SONRA çağrılmalı ki yazılmış uçları ezmesin.
+if settings.mock:
+    from app.api.mock import register_mock_routes
+
+    register_mock_routes(app)
+
+
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse(url="/docs")

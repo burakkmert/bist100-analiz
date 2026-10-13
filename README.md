@@ -57,6 +57,10 @@ docker compose up --build     # PostgreSQL 16 + FastAPI; şema göçleri otomati
   Kişi 1'in `--db` seçenekli betikleri `.env`'deki `DATABASE_URL` ile doğrudan yazar.
 - Kişi 3'ün LLM anahtarları `backend/.env` içinde durabilir; compose onu da okur.
 - Mobilde Supabase girişi hazır olana kadar `.env`'de `AUTH_DEV_BYPASS=1` ile token'sız deneme yapılabilir.
+- **Mock mod (`MOCK=1`, varsayılan):** `shared/openapi.yaml`'da olup henüz gerçek kodu yazılmamış uçlar
+  sözleşmedeki örnek yanıtları döndürür (yanıt başlığında `X-Mock: 1`). Gerçek yazılmış uçlar (`/me/profile`,
+  `/ai/*`) her zaman gerçektir; bir uç gerçek olarak yazıldıkça mock'tan kendiliğinden çıkar. Swagger'da
+  "mock" etiketiyle görünür. Gerçek veriyle çalışmak için `MOCK=0`.
 
 ### Testler ve CI
 
