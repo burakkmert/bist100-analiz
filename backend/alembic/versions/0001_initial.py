@@ -185,7 +185,10 @@ CREATE INDEX IF NOT EXISTS idx_job_runs_lookup  ON job_runs (job_name, run_date)
 
 
 def upgrade() -> None:
-    op.execute(SCHEMA_SQL)
+    # op.execute(text) ":isim" kalıplarını bağ parametresi sanar; şemadaki yorum
+    # ({"realized":.., "hit":true}) yüzünden ":true" aranır ve göç düşer.
+    # Bu yüzden SQL ayrıştırılmadan doğrudan sürücüye verilir.
+    op.get_bind().exec_driver_sql(SCHEMA_SQL, execution_options={"no_parameters": True})
 
 
 def downgrade() -> None:
