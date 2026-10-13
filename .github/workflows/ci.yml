@@ -37,6 +37,8 @@ jobs:
         run: ruff check . ../engine && ruff format --check . ../engine
       - name: Pytest — backend (Kişi 2)
         run: pytest tests -q
+      - name: Pytest — karar motoru (engine/)
+        run: pytest ../engine/tests -q
       - name: Pytest — yapay zekâ katmanı (Kişi 3)
         run: pytest app/ai/tests -q
 
