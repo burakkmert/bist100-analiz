@@ -119,8 +119,8 @@ def test_gercek_uc_mock_tarafindan_ezilmez():
     assert client.post("/watchlist", json={"code": "THYAO"}).status_code == 204
 
 
-def test_ana_uygulamada_profil_ve_ai_gercek_kalir(client):
-    """MOCK kapalıyken (testlerin varsayılanı) mock uçları eklenmez."""
+def test_mock_kapaliyken_mock_ucu_yok(client):
+    """MOCK=0 (testlerin varsayılanı): hiçbir uç X-Mock başlığıyla cevap vermez."""
     paths = client.get("/openapi.json").json()["paths"]
-    assert "/me/profile" in paths
-    assert "/assets" not in paths  # gerçek /assets henüz yazılmadı; mock kapalı
+    assert "/me/profile" in paths and "/assets" in paths  # ikisi de gerçek
+    assert all("mock" not in op.get("tags", []) for ops in paths.values() for op in ops.values())
