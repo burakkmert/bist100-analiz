@@ -40,6 +40,20 @@ jobs:
       - name: Pytest — yapay zekâ katmanı (Kişi 3)
         run: pytest app/ai/tests -q
 
+  ml-data:
+    name: Veri ve model testleri (Kişi 1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: .github/workflows/ci.yml
+      # PyTorch/model/internet gerekmez: modeller sahte nesnelerle test ediliyor
+      - run: pip install pandas numpy pyyaml pyarrow scipy statsmodels pytest
+      - run: pytest data/tests ml/tests backtest/tests -q
+
   mobile:
     name: Mobil (tsc)
     runs-on: ubuntu-latest
