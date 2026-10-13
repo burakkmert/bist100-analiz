@@ -10,16 +10,41 @@ indicators:
   vol_window: 20
 
 ensemble:
-  models: [timesfm, chronos]
-  error_window_days: 60        # model_errors.window_days
-  min_weight: 0.1              # tek modelin ağırlığı bunun altına düşmez
+  # Kişi 1'in gece forecasts tablosuna yazdığı modellerden ensemble'a girenler.
+  # naive_drift bilinçli olarak aday: backtest'te fonlarda en güçlü model (backtest/README.md).
+  # Ağırlık ∝ 1/MAE olduğu için hangi model o varlıkta iyiyse o ağır basar.
+  models: [timesfm, chronos, naive_drift]
+  error_window_days: 60        # model_errors.window_days (ml/config.yaml ile aynı)
+  min_weight: 0.1              # tek modelin ağırlığı bunun altına düşmez (aşırı güveni önler)
 
 regime:
-  adx_trend: 25                # ADX > 25 → trend
-  high_vol_percentile: 0.80    # 1 yıllık volatilite yüzdeliği > 0.80 → yüksek oynaklık
+  adx_period: 14
+  adx_trend: 25                # ADX > 25 → trend (hisse; OHLC gerekir)
+  er_window: 20                # fonlarda ADX yerine Kaufman verimlilik oranı
+  er_trend: 0.30               # ER > 0.30 → trend
+  vol_lookback: 252            # yüksek oynaklık için 1 yıllık volatilite dağılımı
+  high_vol_percentile: 0.80    # bugünkü vol20, son 1 yılın %80'inden yüksek
+  high_vol_min_ratio: 1.2      # VE yıllık medyanın ≥1,2 katıysa → high_vol
 
 direction:
-  atr_fraction: 0.5            # |p50 − son fiyat| > 0.5 × ATR → up/down
+  atr_fraction: 0.5            # |p50 − son fiyat| > 0.5 × ATR × √ufuk → up/down, değilse flat
+
+confidence:
+  # 0–100 puan = temel + sinyal gücü + model uyumu − cezalar (ayrıntı analysis.indicators.confidence_parts)
+  base: 30
+  strength_points: 40          # |p50 − fiyat| / (p90 − p10)/2 → 0..1 → 0..40
+  agreement_points: 30         # ensemble yönüyle aynı yönde olan modellerin ağırlık payı → 0..30
+  penalty_indicator: 10        # göstergeler yönle çelişirse (her biri, en fazla 2)
+  penalty_low_liquidity: 15    # son 20 günün ortalama TL hacmi eşiğin altındaysa (yalnız hisse)
+  min_turnover_tl: 5000000
+  penalty_short_history: 10    # geçmiş min_history günden kısaysa
+  min_history: 250
+  penalty_high_vol: 10         # rejim yüksek oynaklıksa
+
+risk:
+  # Yıllık volatilite (%) eşikleri; high_vol rejimi her zaman "high"
+  low_below: 25
+  medium_below: 45
 
 signals:
   horizons: [1, 5, 20]         # bildirim üreten ufuklar (120 asla)
