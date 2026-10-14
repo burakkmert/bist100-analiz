@@ -29,7 +29,8 @@
         }
       ],
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

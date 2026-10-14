@@ -1,6 +1,7 @@
 // Ayarlar: tema, risk profili, hesap.
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -42,7 +43,7 @@ function Row({
 
 export default function Settings() {
   const p = useTheme();
-  const { themePreference, setThemePreference, riskProfile, resetRiskProfile } = useSettings();
+  const { themePreference, setThemePreference, riskProfile, resetRiskProfile, notificationsEnabled } = useSettings();
   const { user, signOut } = useAuth();
 
   const Sep = () => <View style={[styles.sep, { backgroundColor: p.separator }]} />;
@@ -91,7 +92,12 @@ export default function Settings() {
           }
         />
         <Sep />
-        <Row icon="notifications-outline" title="Bildirimler" detail="Yakında" tone="neutral" />
+        <Row
+          icon="notifications-outline"
+          title="Bildirimler"
+          detail={notificationsEnabled ? 'Açık' : 'Kapalı'}
+          onPress={() => router.push('/notifications')}
+        />
       </GlassCard>
 
       <AppText variant="caption" color="textMuted" style={styles.section}>

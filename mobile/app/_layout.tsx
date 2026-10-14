@@ -20,6 +20,7 @@ import { AIBubble } from '@/components/ai/AIBubble';
 import { AnimatedBackground } from '@/components/AnimatedBackground';
 import { ThemeFadeOverlay } from '@/components/ThemeFadeOverlay';
 import { DISCLAIMER_VERSION } from '@/lib/legal';
+import { refreshPushTokenIfEnabled, useNotificationRouting } from '@/lib/notifications';
 import { useAuth } from '@/store/auth';
 import { useSettings } from '@/store/settings';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
@@ -71,10 +72,17 @@ function RootNavigator() {
     return { ...base, colors: { ...base.colors, background: 'transparent', primary: p.accent, text: p.text } };
   }, [p]);
 
-  if (!ready) return null;
-
   const signedIn = !!user;
   const onboarded = disclaimerVersion === DISCLAIMER_VERSION && !!riskProfile;
+  const inApp = ready && signedIn && onboarded;
+
+  // Bildirime dokununca sinyal ekranı; açılışta push token tazelenir
+  useNotificationRouting(inApp);
+  useEffect(() => {
+    if (inApp) refreshPushTokenIfEnabled().catch(() => {});
+  }, [inApp]);
+
+  if (!ready) return null;
 
   return (
     <NavThemeProvider value={navTheme}>
@@ -109,6 +117,8 @@ function RootNavigator() {
             <Stack.Screen name="chart-read" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="position/new" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="position/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="signal/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+            <Stack.Screen name="notifications" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           </Stack.Protected>
 
           <Stack.Screen name="auth/callback" />

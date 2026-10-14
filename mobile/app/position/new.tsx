@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useAssets } from '@/api/assets';
+import { DateField } from '@/components/DateField';
 import { ModalShell } from '@/components/ModalShell';
 import { AppText, Button, Chips, GlassCard, TextField } from '@/components/ui';
 import { formatPrice, formatTRY } from '@/lib/format';
@@ -172,13 +173,11 @@ export default function NewPosition() {
           ]}
         />
         {dateMode === 'other' ? (
-          <TextField
-            placeholder="GG.AA.YYYY"
-            keyboardType="numbers-and-punctuation"
+          <DateField
             value={dateText}
-            onChangeText={setDateText}
+            onChange={setDateText}
             error={errors.date}
-            icon="calendar-outline"
+            accessibilityLabel="Alış tarihi"
           />
         ) : null}
       </View>
