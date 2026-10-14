@@ -122,7 +122,9 @@ def ctx(database):
     client = TestClient(app)
     eng = create_engine(database)
     with eng.begin() as c:
-        c.execute(text("INSERT INTO assets(code, name, type) VALUES (:c, :c, 'stock')"), {"c": CODE})
+        c.execute(
+            text("INSERT INTO assets(code, name, type) VALUES (:c, :n, 'stock')"), {"c": CODE, "n": CODE}
+        )
 
     ua, ha = _user(client, daily_push_limit=2)
     tag = uuid.uuid4().hex[:6]
