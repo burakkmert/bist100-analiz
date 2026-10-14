@@ -36,7 +36,11 @@ jobs:
       - name: Ruff (Kişi 2 kodu; app/ai hariç)
         run: ruff check . ../engine && ruff format --check . ../engine
       - name: Pytest — backend (Kişi 2)
-        run: pytest tests -q
+        run: |
+          pytest tests -q -rfE --tb=short -p no:cacheprovider > /tmp/out.txt 2>&1; rc=$?
+          grep -E "^(FAILED|ERROR)|^E  |Error|error" /tmp/out.txt | head -60 | while IFS= read -r l; do echo "::error::$l"; done
+          tail -3 /tmp/out.txt | while IFS= read -r l; do echo "::warning::$l"; done
+          exit $rc
       - name: Pytest — karar motoru (engine/)
         run: pytest ../engine/tests -q
       - name: Pytest — yapay zekâ katmanı (Kişi 3)
