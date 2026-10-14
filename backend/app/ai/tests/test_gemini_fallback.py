@@ -34,7 +34,7 @@ class Resp:
 
     def raise_for_status(self):
         if self.status_code >= 400:
-            raise po.httpx.HTTPStatusError("x", request=None, response=self)
+            raise po.httpx.HTTPStatusError("x", response=self)
 
 
 OK = {"candidates": [{"content": {"parts": [{"text": "Merhaba"}]}}]}

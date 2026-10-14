@@ -7,7 +7,7 @@ from typing import Any
 
 from . import guardrails
 from .chat import decode_image, load_prompt
-from .context import AnalysisSource, NullAnalysisSource, describe
+from .context import AnalysisSource, NullAnalysisSource, describe, price_summary
 from .provider import LLMProvider
 
 VALID_TREND = {"up", "down", "flat"}
@@ -68,14 +68,10 @@ async def read_chart(
         analysis = await src.get_analysis(code, 5)
         prices = await src.get_recent_prices(code, 120)
         parts = [describe({"screen": "asset_detail", "code": code}, analysis)]
-        if prices:
-            closes = [p.get("close") for p in prices if p.get("close") is not None]
-            if closes:
-                has_data = True
-                parts.append(
-                    f"Son {len(closes)} günün kapanışları (eskiden yeniye, özet): ilk {closes[0]}, son {closes[-1]}, "
-                    f"en düşük {min(closes)}, en yüksek {max(closes)}"
-                )
+        summary = price_summary(prices)
+        if summary:
+            has_data = True
+            parts.append(summary)
         context_lines = "\n".join(parts)
 
     system = f"{load_prompt('system_chart_read')}\n\n### EKRAN BAĞLAMI\n{context_lines}\n"

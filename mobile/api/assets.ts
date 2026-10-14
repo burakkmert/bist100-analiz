@@ -69,7 +69,7 @@ export const useForecast = (code: string) =>
   useQuery({ queryKey: ['forecast', code], queryFn: () => fetchForecast(code), staleTime: 10 * 60_000 });
 
 export const useAnalysis = (code: string, horizon: Horizon) =>
-  useQuery({ queryKey: ['analysis', code, horizon], queryFn: () => fetchAnalysis(code, horizon) });
+  useQuery({ queryKey: ['analysis', code, horizon], queryFn: () => fetchAnalysis(code, horizon), enabled: !!code });
 
 export const useSignals = () => useQuery({ queryKey: ['signals'], queryFn: fetchSignals });
 
@@ -95,4 +95,5 @@ export const useAsset = (code: string) =>
       const list = await fetchAssets(undefined, code);
       return list.find((a) => a.code === code) ?? null;
     },
+    enabled: !!code,
   });
