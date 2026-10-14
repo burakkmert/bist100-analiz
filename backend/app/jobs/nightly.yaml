@@ -1,0 +1,69 @@
+# Gece zinciri (Kişi 2). Saatler Türkiye saati (UTC+3).
+# Her adım: saati gelince çalışır; önceki zorunlu adım başarısızsa atlanır (job_runs'a 'failed' + neden).
+# Bir adım o gün zaten başarıyla çalıştıysa tekrar çalışmaz → zamanlayıcı yeniden başlatılırsa kaldığı yerden devam eder.
+#   cwd: repo (depo kökü) | backend
+#   records_self: true → komut kendi job_runs satırını yazar (engine, signals, push);
+#                 false → satırı zamanlayıcı yazar (collect, forecast, explain)
+#   {date} → zincirin günü (YYYY-MM-DD)
+
+steps:
+  - job: collect
+    at: "19:00"
+    cmd: ["-m", "data.run_daily", "--db"]
+    cwd: repo
+    records_self: false
+    timeout_min: 50
+  - job: forecast
+    at: "20:00"
+    cmd: ["-m", "ml.nightly", "--db", "--run-date", "{date}"]
+    cwd: repo
+    records_self: false
+    timeout_min: 85
+  - job: engine
+    at: "21:30"
+    cmd: ["-m", "engine.run_engine", "--date", "{date}"]
+    cwd: repo
+    records_self: true
+    timeout_min: 10
+  - job: signals
+    at: "21:30"
+    cmd: ["-m", "engine.run_signals", "--date", "{date}"]
+    cwd: repo
+    records_self: true
+    timeout_min: 10
+  - job: explain                # Kişi 3; veritabanı modu hazır olunca enabled: true
+    at: "22:00"
+    cmd: ["-m", "app.ai.explain_job", "--run-date", "{date}"]
+    cwd: backend
+    records_self: false
+    required: false             # başarısız olsa da bildirim gider
+    enabled: false
+    timeout_min: 15
+  - job: push
+    at: "22:15"
+    cmd: ["-m", "app.jobs.push", "--date", "{date}"]
+    cwd: backend
+    records_self: true
+    timeout_min: 5
+
+# Sessiz saatte ertelenen bildirimler + Expo receipt kontrolü (her gün, hafta sonu dahil)
+deferred_push:
+  at: "08:05"
+  cmd: ["-m", "app.jobs.push"]
+  cwd: backend
+
+# Zincirin çalışmadığı günler: hafta sonu + Borsa İstanbul tam gün tatilleri.
+# Yarım günler (arife, 28 Ekim) normal çalışır — o gün de kapanış verisi oluşur.
+# Her yıl Borsa İstanbul'un ilan ettiği takvimle kontrol edilmeli.
+holidays:
+  - 2026-01-01   # Yılbaşı
+  - 2026-03-20   # Ramazan Bayramı
+  - 2026-04-23   # Ulusal Egemenlik ve Çocuk Bayramı
+  - 2026-05-01   # Emek ve Dayanışma Günü
+  - 2026-05-19   # Atatürk'ü Anma, Gençlik ve Spor Bayramı
+  - 2026-05-27   # Kurban Bayramı
+  - 2026-05-28
+  - 2026-05-29
+  - 2026-07-15   # Demokrasi ve Milli Birlik Günü
+  - 2026-10-29   # Cumhuriyet Bayramı
+  - 2027-01-01

@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from app.ai.router import router as ai_router  # Kişi 3 — prefix="/ai" router'ın içinde
-from app.api import assets, backtest, devices, health, portfolio, profile
+from app.api import assets, backtest, devices, health, portfolio, profile, signals
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -47,6 +47,7 @@ if not settings.mock:
     app.include_router(assets.router)
     app.include_router(portfolio.router)
     app.include_router(backtest.router)
+    app.include_router(signals.router)
 
 # MOCK=1: sözleşmede olup henüz yazılmamış uçlar openapi.yaml örnekleriyle cevap verir.
 # Gerçek router'lardan SONRA çağrılmalı ki yazılmış uçları ezmesin.

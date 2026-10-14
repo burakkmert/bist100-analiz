@@ -47,8 +47,16 @@ risk:
   medium_below: 45
 
 signals:
-  horizons: [1, 5, 20]         # bildirim üreten ufuklar (120 asla)
+  horizons: [1, 5, 20]         # analiz ve sinyal üreten ufuklar (120 asla)
   min_confidence: {cautious: 75, balanced: 65, aggressive: 55}
   budget_fraction: {cautious: 0.05, balanced: 0.10, aggressive: 0.15}
-  stop_atr_multiple: 2.0
-  cooldown_days: 5             # aynı varlık için tekrar sinyal bekleme süresi
+  # Profilin kabul ettiği risk seviyeleri (alım yönlü sinyal için)
+  allowed_risk:
+    cautious: [low, medium]
+    balanced: [low, medium]
+    aggressive: [low, medium, high]
+  stop_atr_multiple: 2.0       # zarar-durdur = fiyat − 2 × ATR
+  cooldown_days: 5             # aynı kullanıcı × varlık × yön için tekrar sinyal bekleme süresi (takvim günü)
+  # Alım adayları = izleme listesi + izlenmeyen varlıklardan en güçlü N tanesi ("taranan evren")
+  universe_top_n: 3
+  universe_extra_confidence: 10  # izlenmeyen varlık için eşik + 10 puan
