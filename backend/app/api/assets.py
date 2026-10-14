@@ -95,6 +95,12 @@ def list_assets(db: Session, types: tuple[str, ...], q: str = "") -> list[AssetL
     return items
 
 
+def _page(items: list, limit: int | None, offset: int) -> list:
+    """İsteğe bağlı sayfalama. Toplam sayı X-Total-Count başlığında değil; liste küçük (≈800)
+    olduğundan mobil ilk sayfayı alıp kaydırdıkça offset'i artırır, boş sayfa = son."""
+    return items[offset : offset + limit] if limit else items[offset:]
+
+
 def _types(type_: str | None) -> tuple[str, ...]:
     # Boşsa hisse + fon; endeks (XU100) yalnızca açıkça istenince
     return (type_,) if type_ else ("stock", "fund")
@@ -104,9 +110,12 @@ def _types(type_: str | None) -> tuple[str, ...]:
 def get_assets(
     type: Literal["stock", "fund", "index"] | None = None,
     q: str = Query("", max_length=50, description="Kod veya ad araması (Türkçe harf duyarsız)"),
+    limit: int | None = Query(None, ge=1, le=1000, description="Sayfa boyutu (boşsa hepsi)"),
+    offset: int = Query(0, ge=0, description="Atlanacak kayıt sayısı"),
     db: Session = Depends(get_db),
 ):
-    return list_assets(db, _types(type), q.strip())
+    """Sayfalama isteğe bağlıdır: limit verilmezse sözleşmedeki gibi tüm liste döner."""
+    return _page(list_assets(db, _types(type), q.strip()), limit, offset)
 
 
 def _asset_exists(db: Session, code: str) -> dict:
@@ -275,6 +284,8 @@ def screener(
     direction: Literal["up", "down", "flat"] | None = None,
     min_conf: int = Query(0, ge=0, le=100),
     horizon: int = Query(5, description="Kısa ufuk: 1, 5 veya 20 iş günü"),
+    limit: int | None = Query(None, ge=1, le=1000, description="Sayfa boyutu (boşsa hepsi)"),
+    offset: int = Query(0, ge=0, description="Atlanacak kayıt sayısı"),
     db: Session = Depends(get_db),
 ):
     """Son gece çalışmasının analizine göre süzülmüş varlıklar; güven skoruna göre azalan sıralı."""
@@ -295,4 +306,4 @@ def screener(
     if not conf:
         return []
     items = [a for a in list_assets(db, _types(type)) if a.code in conf]
-    return sorted(items, key=lambda a: (-conf[a.code], a.code))
+    return _page(sorted(items, key=lambda a: (-conf[a.code], a.code)), limit, offset)

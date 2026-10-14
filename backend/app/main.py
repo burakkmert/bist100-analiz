@@ -11,9 +11,10 @@ import json
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy.exc import OperationalError
 
 from app.ai.router import router as ai_router  # Kişi 3 — prefix="/ai" router'ın içinde
 from app.api import assets, backtest, devices, health, portfolio, profile, signals
@@ -48,6 +49,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --------------------------------------------------------------------------- hata yönetimi
+# Beklenmeyen hatalar istemciye iç ayrıntı sızdırmadan, her zaman JSON ve Türkçe döner;
+# ayrıntı günlüğe yazılır.
+log = logging.getLogger("api.errors")
+
+
+@app.exception_handler(OperationalError)
+async def db_unavailable(request: Request, exc: OperationalError):
+    """Veritabanına ulaşılamıyor (ör. Supabase duraklatıldı, bağlantı koptu) → 503, tekrar denenebilir."""
+    log.error("Veritabanı hatası: %s %s: %s", request.method, request.url.path, exc.__class__.__name__)
+    return JSONResponse(
+        {"detail": "Veritabanına şu an ulaşılamıyor. Biraz sonra tekrar deneyin."},
+        status_code=503,
+        headers={"Retry-After": "30"},
+    )
+
+
+@app.exception_handler(Exception)
+async def unexpected_error(request: Request, exc: Exception):
+    log.exception("Beklenmeyen hata: %s %s", request.method, request.url.path)
+    return JSONResponse({"detail": "Beklenmeyen bir sunucu hatası oluştu."}, status_code=500)
+
 
 app.include_router(health.router)
 app.include_router(profile.router)

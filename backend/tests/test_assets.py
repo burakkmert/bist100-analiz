@@ -106,6 +106,15 @@ def test_liste_tur_suzgeci_ve_endeks(client, seeded, h):
     assert {a["code"] for a in _ours(client.get("/assets?type=index", headers=h).json())} == {INDEX}
 
 
+def test_istege_bagli_sayfalama(client, seeded, h):
+    full = [a["code"] for a in client.get("/assets", headers=h).json()]
+    p1 = [a["code"] for a in client.get("/assets?limit=2", headers=h).json()]
+    p2 = [a["code"] for a in client.get("/assets?limit=2&offset=2", headers=h).json()]
+    assert p1 == full[:2] and p2 == full[2:4]
+    assert client.get(f"/assets?limit=5&offset={len(full)}", headers=h).json() == []
+    assert client.get("/assets?limit=0", headers=h).status_code == 422
+
+
 @pytest.mark.parametrize("q", ["İŞ TEST", "iş test", "IŞ TEST"])
 def test_turkce_harf_duyarsiz_arama(client, seeded, h, q):
     assert [a["code"] for a in _ours(client.get(f"/assets?q={q}", headers=h).json())] == [FUND]
