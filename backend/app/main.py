@@ -17,6 +17,7 @@ from fastapi.responses import RedirectResponse
 from app.ai.router import router as ai_router  # Kişi 3 — prefix="/ai" router'ın içinde
 from app.api import assets, backtest, devices, health, portfolio, profile, signals
 from app.core.config import get_settings
+from app.core.ratelimit import RateLimitMiddleware
 
 settings = get_settings()
 
@@ -24,6 +25,14 @@ app = FastAPI(
     title="Fon ve Hisse Takip API",
     version="0.2.0",
     description="Model sinyalleri yatırım tavsiyesi değildir (SPK).",
+)
+
+# İstek sınırı CORS'tan ÖNCE eklenir: Starlette'te son eklenen en dışta çalışır, böylece 429 yanıtları da
+# CORS başlıklarını taşır (tarayıcı/Expo web hatayı okuyabilsin).
+app.add_middleware(
+    RateLimitMiddleware,
+    per_min=settings.rate_limit_per_min,
+    ai_per_min=settings.rate_limit_ai_per_min,
 )
 
 app.add_middleware(
