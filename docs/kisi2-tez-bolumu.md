@@ -271,6 +271,25 @@ Bildirimler Expo Push API ile gönderilir. Tasarımda gözetilen kurallar:
 - **Geçersiz cihazlar:** Expo, uygulaması silinmiş bir cihaz için "DeviceNotRegistered" döndürdüğünde ilgili token silinir. Bu hem gönderim yanıtında (ticket) hem de 15 dakika sonra sorgulanan teslim yanıtında (receipt) denetlenir.
 - **Metin:** Bildirim metni tavsiye dili içermez, örneğin: "THYAO · 5 günlük ufukta yükseliş yönlü model sinyali · güven 72 — Yatırım tavsiyesi değildir."
 
+### 3.5 Açıklanabilirlik ve sanal portföy (Aşama 2)
+
+**"Bu sinyal neden?"** `/signals/{id}/explain` uç noktası, bir sinyalin dayandığı gecenin karar motoru çıktısını bileşenleriyle döndürür:
+- model ağırlıkları,
+- güven skorunun temel, güç, uyum ve ceza bileşenleri,
+- gösterge değerleri,
+- varlığın ve BIST 100'ün rejimi,
+- kalibrasyon bilgisi,
+- tahmin bandı,
+- yapay zekâ yorumu.
+
+Bu bilgiler ilk günden `analysis` tablosuna kaydedildiği için geçmiş sinyaller de açıklanabilir.
+
+**Sanal portföy.** `/paper-portfolio`, kullanıcının alım yönlü model sinyallerine otomatik uyulsaydı oluşacak sonucu gösterir:
+- Her sinyal, sinyal günündeki kapanıştan ve önerilen adetle açılır.
+- Ufuk dolunca gerçekleşen fiyattan kapanır; açık pozisyonlar son kapanışla değerlenir.
+
+Ayrı bir tablo tutulmaz; portföy her istekte sinyaller ve fiyatlardan hesaplanır, böylece gece işleriyle kendiliğinden güncel kalır ve şemada değişiklik gerekmez. Sanal portföy, sinyal siciliyle birlikte modelin pratikteki değerini kullanıcıya şeffaf biçimde gösterir.
+
 ---
 
 ## 4. Veritabanı
@@ -334,4 +353,4 @@ erDiagram
 - **Eşiklerin ayarı.** Güven eşikleri (55/65/75), yön eşiği (0,5 × ATR × √h) ve risk eşikleri uzman tahminiyle başlatıldı. Kalibrasyon güven gösterimini düzeltti; eşiklerin kendisinin backtest üzerinde sistematik bir arama ile ayarlanması gelecek çalışmadır.
 - **Hisselerde ayırt edici güç.** Kalibrasyon, hisselerde mevcut modellerin yön tahmininin rastgeleden ayırt edilemediğini gösterdi. Bu nedenle sinyal motoru şu an pratikte yalnızca fonlarda model sinyali üretmektedir. Hisseler için haber duygu analizi gibi ek değişkenler (Aşama 2) bu durumu değiştirebilir.
 - **Tek süreçli sayaçlar.** İstek sınırı sayaçları bellekte tutulur. Sunucu birden çok süreçle ölçeklendirilirse paylaşılan bir depoya (ör. Redis) taşınmalıdır.
-- **Sanal portföy.** Sinyallere otomatik uyulsaydı oluşacak sanal portföyün izlenmesi (Aşama 2) gelecek çalışma olarak bırakılmıştır.
+- **Sanal portföyde işlem maliyeti.** Sanal portföy komisyon, vergi ve kayma (slippage) maliyetlerini içermez; bunların eklenmesi gelecek çalışmadır.
