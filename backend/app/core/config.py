@@ -33,6 +33,10 @@ class Settings(BaseSettings):
 
     expo_access_token: str = ""
 
+    # İstek sınırı (dakikada, kullanıcı başına). 0 = kapalı. Ayrıntı: app/core/ratelimit.py
+    rate_limit_per_min: int = 120
+    rate_limit_ai_per_min: int = 10
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
