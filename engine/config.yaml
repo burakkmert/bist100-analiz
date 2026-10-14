@@ -40,11 +40,16 @@ confidence:
   penalty_short_history: 10    # geçmiş min_history günden kısaysa
   min_history: 250
   penalty_high_vol: 10         # rejim yüksek oynaklıksa
+  flat_max: 50                 # flat (yön yok) satırların güveni en fazla bu; sinyal üretmezler
 
 risk:
-  # Yıllık volatilite (%) eşikleri; high_vol rejimi her zaman "high"
-  low_below: 25
-  medium_below: 45
+  # Varlığın kendi yıllık volatilitesi (%, vol20) → seviye; tür başına eşik.
+  # Başlangıç değerleri; Kişi 1'in vol20 dağılımı ve backtest'iyle ayarlanacak.
+  # (Eskiden tek eşik 25/45 idi ve high_vol rejimi her zaman "high" yapıyordu → hisselerin %75'i high.)
+  stock: {low_below: 35, medium_below: 55}
+  fund:  {low_below: 10, medium_below: 25}
+  index: {low_below: 20, medium_below: 35}
+  high_vol_bump: 1             # high_vol rejiminde seviye bir kademe artar (low→medium, medium→high)
 
 signals:
   horizons: [1, 5, 20]         # analiz ve sinyal üreten ufuklar (120 asla)
