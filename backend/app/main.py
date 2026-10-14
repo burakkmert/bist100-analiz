@@ -8,6 +8,7 @@ Sözleşme: shared/openapi.yaml (Hafta 2'de eklenecek), shared/db_schema.sql
 """
 
 import json
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -18,8 +19,12 @@ from app.ai.router import router as ai_router  # Kişi 3 — prefix="/ai" router
 from app.api import assets, backtest, devices, health, portfolio, profile, signals
 from app.core.config import get_settings
 from app.core.ratelimit import RateLimitMiddleware
+from app.core.timing import TimingMiddleware
 
 settings = get_settings()
+
+# Kendi günlüklerimiz (ör. api.timing) uvicorn'unkilerle birlikte görünsün
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
 app = FastAPI(
     title="Fon ve Hisse Takip API",
@@ -29,6 +34,8 @@ app = FastAPI(
 
 # İstek sınırı CORS'tan ÖNCE eklenir: Starlette'te son eklenen en dışta çalışır, böylece 429 yanıtları da
 # CORS başlıklarını taşır (tarayıcı/Expo web hatayı okuyabilsin).
+app.add_middleware(TimingMiddleware)  # en içte: yalnızca uygulamanın kendi süresini ölçer
+
 app.add_middleware(
     RateLimitMiddleware,
     per_min=settings.rate_limit_per_min,
