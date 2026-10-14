@@ -10,13 +10,16 @@ Yön
 
 Güven skoru = temel + sinyal gücü + model uyumu − cezalar  (0–100'e kırpılır)
   sinyal gücü : |p50 − fiyat| / ((p90 − p10)/2)  → bandın yarı genişliğine göre ne kadar net (0..1)
-                flat'te tersi: değişim eşikten ne kadar küçükse o kadar net
   model uyumu : ensemble yönünü gösteren modellerin ağırlık payı (0..1)
+  flat        : yön yok demektir; sinyal gücü puanı verilmez, uyum = p50'si eşik içinde kalan modellerin
+                payı ve skor `flat_max` ile sınırlanır. (Eskiden flat'te güç ve uyum kendiliğinden ~1 çıkıyor,
+                yön bilgisi olmayan satırlar 90+ güven alıyordu.)
   cezalar     : göstergeler yönle çelişiyor (RSI aşırı bölge, MA20/MA50 ters), düşük likidite,
                 kısa geçmiş, yüksek oynaklık rejimi
 Her bileşen analysis.indicators.confidence_parts'a yazılır ("neden bu sinyal?" ekranı, Aşama 2).
 
-Risk: yıllık volatilite eşikleri; high_vol rejimi her zaman "high".
+Risk: varlığın KENDİ yıllık volatilitesi (vol20), varlık türüne göre eşiklerle (hisse/fon/endeks ayrı).
+  high_vol rejimi (varlığın bugünkü oynaklığı kendi son 1 yılına göre yüksek) riski bir kademe artırır.
 
 Bu modül hiçbir yerde "al/sat" demez; yalnızca model görüşünü sayısallaştırır (SPK kuralı).
 """
@@ -30,6 +33,7 @@ from typing import Any
 import pandas as pd
 import yaml
 
+from engine import calibration as cal
 from engine import ensemble as ens
 from engine import indicators as ind
 from engine import regime as reg
@@ -82,16 +86,23 @@ def turnover_tl(df: pd.DataFrame, window: int = 20) -> float | None:
     return float(tl.mean()) if tl.notna().any() else None
 
 
-def risk_level(vol20: float | None, regime: str, cfg: dict) -> str:
-    if regime == "high_vol":
-        return "high"
+RISK_LEVELS = ("low", "medium", "high")
+
+
+def risk_level(vol20: float | None, regime: str, cfg: dict, asset_type: str = "stock") -> str:
+    """cfg: config.yaml 'risk' bölümü. Türe özel eşik yoksa hisse eşikleri kullanılır."""
+    th = cfg.get(asset_type) or cfg.get("stock") or cfg
     if vol20 is None or not math.isfinite(vol20):
-        return "medium"  # bilinmiyorsa temkinli orta
-    if vol20 < cfg["low_below"]:
-        return "low"
-    if vol20 < cfg["medium_below"]:
-        return "medium"
-    return "high"
+        level = 1  # bilinmiyorsa temkinli orta
+    elif vol20 < th["low_below"]:
+        level = 0
+    elif vol20 < th["medium_below"]:
+        level = 1
+    else:
+        level = 2
+    if regime == "high_vol":
+        level += int(cfg.get("high_vol_bump", 1))
+    return RISK_LEVELS[min(level, 2)]
 
 
 def analyze(
@@ -102,8 +113,13 @@ def analyze(
     errors: dict[int, dict[str, float | None]],
     cfg: dict | None = None,
     asset_type: str = "stock",
+    calibration: dict | None = None,
 ) -> list[dict]:
     """Bir varlığın tüm kısa ufukları için analysis satırları.
+
+    calibration : Kişi 1'in güven eşlemesi (engine.calibration.load()). Verilirse flat tavanı eşlemeden
+                  alınır ve her satıra geçmiş isabet ifadesi (indicators.calibration) eklenir.
+                  Backtest yeniden oynatması ham puanı ölçtüğü için bunu VERMEZ.
 
     prices    : tarih sıralı fiyat tablosu (prices tablosu sütunları), son satır = run_date'e kadar
     forecasts : {ufuk: {model: (p10, p50, p90)}} — yalnızca ensemble'a giren modeller
@@ -132,11 +148,9 @@ def analyze(
         direction = direction_of(change, threshold)
 
         half_band = max((e.p90 - e.p10) / 2, 1e-12)
-        if direction == "flat":
-            strength = 1 - _clip(abs(change) / threshold) if threshold > 0 else 0.5
-        else:
-            strength = _clip(abs(change) / half_band)
-        agree = ens.agreement(fc, e.weights, last, direction)
+        flat = direction == "flat"
+        strength = 0.0 if flat else _clip(abs(change) / half_band)
+        agree = ens.agreement(fc, e.weights, last, direction, threshold if flat else None)
 
         conflicts = indicator_conflicts(direction, snap)
         penalties = {
@@ -153,10 +167,15 @@ def analyze(
             + cc["agreement_points"] * agree
             - sum(penalties.values())
         )
-        confidence = int(round(_clip(raw, 0, 100)))
+        cap = cc.get("flat_max", 100) if flat else 100
+        if flat and calibration is not None:
+            cap = cal.flat_cap(calibration, asset_type, h, cap)
+        confidence = int(round(_clip(raw, 0, cap)))
 
+        calib = cal.describe(calibration, asset_type, h, direction, confidence)
         indicators = {
             **snap,
+            **({"calibration": calib} if calib is not None else {}),
             "regime_details": regime.details,
             "confidence_parts": {
                 "base": cc["base"],
@@ -166,6 +185,7 @@ def analyze(
                 "conflicts": conflicts,
                 "threshold": round(threshold, 4),
                 "change": round(change, 4),
+                "cap": cap,
             },
         }
         rows.append(
@@ -175,7 +195,7 @@ def analyze(
                 "horizon": h,
                 "direction": direction,
                 "confidence": confidence,
-                "risk": risk_level(snap.get("vol20"), regime.name, cfg["risk"]),
+                "risk": risk_level(snap.get("vol20"), regime.name, cfg["risk"], asset_type),
                 "regime": regime.name,
                 "weights": e.weights,
                 "indicators": indicators,

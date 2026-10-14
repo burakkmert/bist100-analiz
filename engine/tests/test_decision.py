@@ -188,12 +188,53 @@ def test_gosterge_celiskisi_cezasi():
     assert dec.indicator_conflicts("flat", {"rsi": 90}) == []
 
 
-def test_risk_seviyesi():
-    r = CFG["risk"]
-    assert dec.risk_level(15, "trend", r) == "low"
-    assert dec.risk_level(30, "range", r) == "medium"
+def test_risk_seviyesi_ture_gore():
+    r = {
+        "stock": {"low_below": 35, "medium_below": 55},
+        "fund": {"low_below": 10, "medium_below": 25},
+        "high_vol_bump": 1,
+    }
+    assert dec.risk_level(30, "trend", r) == "low"
+    assert dec.risk_level(40, "range", r) == "medium"
     assert dec.risk_level(60, "trend", r) == "high"
-    assert dec.risk_level(15, "high_vol", r) == "high"
+    assert dec.risk_level(30, "trend", r, "fund") == "high"  # fon için %30 çok oynak
+    assert dec.risk_level(5, "trend", r, "fund") == "low"
+    assert dec.risk_level(30, "trend", r, "index") == "low"  # tanımsız tür → hisse eşikleri
+    assert dec.risk_level(None, "trend", r) == "medium"
+
+
+def test_yuksek_oynaklik_riski_bir_kademe_artirir():
+    r = {"stock": {"low_below": 35, "medium_below": 55}, "high_vol_bump": 1}
+    assert dec.risk_level(30, "high_vol", r) == "medium"
+    assert dec.risk_level(40, "high_vol", r) == "high"
+    assert dec.risk_level(80, "high_vol", r) == "high"
+
+
+def test_config_risk_esikleri_gecerli():
+    for t in ("stock", "fund", "index"):
+        th = CFG["risk"][t]
+        assert 0 < th["low_below"] < th["medium_below"]
+
+
+def test_flat_guveni_sinirli_ve_guc_puani_yok():
+    """Hepsi 'yön yok' diyorsa bu yüksek güvenli bir sinyal değildir (Kişi 1'in gözlemi: hisselerde
+    %99 flat ama ortalama güven 87-89 idi)."""
+    df = _series(300, seed=5)
+    last = float(df["close"].iloc[-1])
+    (r,) = dec.analyze("X", "d", df, {5: _fc(last, 0.0)}, {5: {}}, CFG)
+    parts = r["indicators"]["confidence_parts"]
+    assert r["direction"] == "flat"
+    assert parts["strength"] == 0
+    assert r["confidence"] <= CFG["confidence"]["flat_max"]
+    up = dec.analyze("X", "d", df, {5: _fc(last, last * 0.05)}, {5: {}}, CFG)[0]
+    assert up["confidence"] > r["confidence"]
+
+
+def test_flat_uyumu_esige_gore():
+    fc = {"yakin": (90, 100.5, 110), "uzak": (90, 108, 120)}
+    w = {"yakin": 0.6, "uzak": 0.4}
+    assert ens.agreement(fc, w, 100, "flat", threshold=2) == pytest.approx(0.6)
+    assert ens.agreement(fc, w, 100, "flat") == pytest.approx(1.0)  # eşiksiz eski davranış (bant)
 
 
 def test_satir_analysis_tablosuna_uygun_ve_json():

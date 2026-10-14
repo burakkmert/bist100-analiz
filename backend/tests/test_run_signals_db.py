@@ -8,7 +8,7 @@ from datetime import date, timedelta
 import pytest
 from sqlalchemy import create_engine, text
 
-from engine import run_signals
+from engine import run_engine, run_signals
 from tests.utils import auth_header, make_token
 
 UP, WEAK, HELD = "SIGUP", "SIGWK", "SIGHD"
@@ -72,7 +72,11 @@ def ctx(database):
     assert client.post("/portfolio", json=pos, headers=h1).status_code == 201
     u2, h2 = _user(client, risk_profile="cautious", budget=5000)  # izleme yok; evren eşiği 85
 
+    # Kurallar kalibrasyondan bağımsız sınansın (eşleme dosyası depoya girse bile)
+    original = run_engine.load_calibration
+    run_engine.load_calibration = lambda cfg: None
     yield {"eng": eng, "client": client, "h1": h1, "h2": h2, "u1": u1}
+    run_engine.load_calibration = original
 
     with eng.begin() as c:
         for t in ("positions", "watchlist", "signals", "analysis", "prices"):

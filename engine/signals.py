@@ -9,6 +9,8 @@ ALIM YÖNLÜ SİNYAL — her kullanıcı için ayrı:
   koşullar: yön = up, güven ≥ profil eşiği (temkinli 75 / dengeli 65 / atak 55),
             risk profilin kabul ettikleri arasında, açık pozisyon yok, bekleme süresi dolmuş
   ufuk: 1/5/20 içinde koşulları sağlayan en yüksek güvenli olan (varlık başına bir sinyal)
+  kalibrasyon: Kişi 1'in eşlemesi varsa yalnızca güvenin isabeti ayırt ettiği (tür, ufuk, yön)
+            anahtarlarında model sinyali üretilir (engine/calibration.py)
   adet: bütçe × profil oranı (%5 / %10 / %15) ÷ fiyat, aşağı yuvarlanmış tam sayı
   zarar-durdur: fiyat − 2 × ATR
 
@@ -41,6 +43,10 @@ class AssetView:
     price: float
     atr_pct: float | None
     by_horizon: dict[int, dict]  # {ufuk: analysis satırı (direction, confidence, risk, high, ...)}
+    asset_type: str = "stock"
+    # Güven kalibrasyonunda ayırt edici gücü olan (ufuk, yön) çiftleri; None = kısıtlama yok.
+    # Model kaynaklı sinyal yalnızca bunlarda üretilir (zarar-durdur/hedef satışları etkilenmez).
+    informative: frozenset[tuple[int, str]] | None = None
 
 
 @dataclass(frozen=True)
@@ -96,6 +102,7 @@ def best_horizon(
         a
         for a in view.by_horizon.values()
         if a.get("direction") == direction
+        and (view.informative is None or (int(a["horizon"]), direction) in view.informative)
         and (a.get("confidence") or 0) >= min_conf
         and (allowed_risk is None or a.get("risk") in allowed_risk)
     ]

@@ -85,10 +85,16 @@ def combine(
 
 
 def agreement(
-    forecasts: dict[str, Quantiles], w: dict[str, float], last_price: float, direction: str
+    forecasts: dict[str, Quantiles],
+    w: dict[str, float],
+    last_price: float,
+    direction: str,
+    threshold: float | None = None,
 ) -> float:
     """Ensemble yönüyle aynı yönü gösteren modellerin ağırlık payı (0–1).
-    flat yönde: p50'si son fiyata en yakın olanlar değil, bandı son fiyatı içerenler 'aynı yönde' sayılır."""
+    flat yönde: `threshold` verilirse p50'si son fiyata eşikten yakın olan modeller 'aynı yönde' sayılır
+    (karar motoru böyle çağırır). Verilmezse bandı son fiyatı içerenler — bu çok gevşektir: geniş bantlı
+    her model son fiyatı içerir ve uyum hep ~1 çıkar."""
     share = 0.0
     for m, wm in w.items():
         p10, p50, p90 = forecasts[m]
@@ -97,6 +103,8 @@ def agreement(
             ok = mid > last_price
         elif direction == "down":
             ok = mid < last_price
+        elif threshold is not None:
+            ok = abs(mid - last_price) <= threshold
         else:
             ok = p10 <= last_price <= p90
         share += wm if ok else 0

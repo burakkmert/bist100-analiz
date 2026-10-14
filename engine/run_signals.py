@@ -25,7 +25,9 @@ from datetime import date
 
 from sqlalchemy import Engine, create_engine, text
 
+from engine import calibration as cal
 from engine import decision as dec
+from engine import run_engine
 from engine import signals as sig
 
 log = logging.getLogger("engine.signals")
@@ -85,11 +87,11 @@ def fill_outcomes(conn, run_date: date) -> int:
 # --------------------------------------------------------------------------- okuma
 
 
-def load_assets(conn, run_date: date) -> dict[str, sig.AssetView]:
+def load_assets(conn, run_date: date, calibration: dict | None = None) -> dict[str, sig.AssetView]:
     rows = conn.execute(
         text(
             """
-            SELECT a.code, a.horizon, a.direction, a.confidence, a.risk, a.high,
+            SELECT a.code, s.type, a.horizon, a.direction, a.confidence, a.risk, a.high,
                    (a.indicators->>'atr_pct')::float AS atr_pct, p.close AS price
             FROM analysis a
             JOIN assets s ON s.code = a.code AND s.is_active AND s.type IN ('stock', 'fund')
@@ -110,11 +112,19 @@ def load_assets(conn, run_date: date) -> dict[str, sig.AssetView]:
             "risk": r["risk"],
             "high": None if r["high"] is None else float(r["high"]),
         }
-        meta[r["code"]] = (float(r["price"]), r["atr_pct"])
-    return {
-        c: sig.AssetView(code=c, price=meta[c][0], atr_pct=meta[c][1], by_horizon=h)
-        for c, h in by_code.items()
-    }
+        meta[r["code"]] = (float(r["price"]), r["atr_pct"], r["type"])
+    out = {}
+    for c, h in by_code.items():
+        price, atr_pct, typ = meta[c]
+        allowed = None
+        if calibration is not None:
+            allowed = frozenset(
+                (hz, d) for hz in h for d in ("up", "down") if cal.informative(calibration, typ, hz, d)
+            )
+        out[c] = sig.AssetView(
+            code=c, price=price, atr_pct=atr_pct, by_horizon=h, asset_type=typ, informative=allowed
+        )
+    return out
 
 
 def load_users(conn, since: date) -> list[sig.UserView]:
@@ -214,7 +224,8 @@ def run(engine: Engine, run_date: date | None = None, dry_run: bool = False) -> 
     try:
         with engine.begin() as conn:
             filled = 0 if dry_run else fill_outcomes(conn, run_date)
-            assets = load_assets(conn, run_date)
+            calibration = run_engine.load_calibration(cfg)
+            assets = load_assets(conn, run_date, calibration)
             users = load_users(conn, sig.cooldown_since(run_date, cfg))
             drafts = [d for u in users for d in sig.signals_for_user(u, assets, cfg)]
             ids = [] if dry_run else write_signals(conn, drafts, run_date)
@@ -223,6 +234,7 @@ def run(engine: Engine, run_date: date | None = None, dry_run: bool = False) -> 
                 "users": len(users),
                 "assets": len(assets),
                 "created": len(drafts),
+                "calibration": calibration is not None,
                 "buy": sum(d.side == "buy" for d in drafts),
                 "sell": sum(d.side == "sell" for d in drafts),
                 "sell_reasons": {

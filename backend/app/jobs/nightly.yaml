@@ -31,9 +31,9 @@ steps:
     cwd: repo
     records_self: true
     timeout_min: 10
-  - job: explain                # Kişi 3; veritabanı modu hazır olunca enabled: true
+  - job: explain                # Kişi 3; --db modu birleşince enabled: true yapılır
     at: "22:00"
-    cmd: ["-m", "app.ai.explain_job", "--run-date", "{date}"]
+    cmd: ["-m", "app.ai.explain_job", "--db", "--run-date", "{date}"]
     cwd: backend
     records_self: false
     required: false             # başarısız olsa da bildirim gider
