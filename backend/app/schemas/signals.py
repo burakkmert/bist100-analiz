@@ -46,3 +46,28 @@ class TrackRecord(BaseModel):
     mine_by: list[RecordBucket]
     model: RecordBucket = Field(description="Tüm kullanıcılar; aynı gece-varlık-yön-ufuk bir kez sayılır")
     model_by: list[RecordBucket]
+
+
+class Band(BaseModel):
+    low: float | None
+    mid: float | None
+    high: float | None
+
+
+class SignalExplanation(BaseModel):
+    """ "Bu sinyal neden?" (Aşama 2): sinyalin üretildiği gecenin karar motoru çıktısı, bileşenleriyle."""
+
+    signal: Signal
+    run_date: date = Field(description="Sinyalin dayandığı analiz gecesi")
+    direction: str
+    confidence: int | None
+    risk: str | None
+    regime: str | None
+    market_regime: str | None = Field(description="BIST 100 rejimi")
+    weights: dict | None = Field(description="Model ağırlıkları (∝ 1/MAE)")
+    confidence_parts: dict | None = Field(description="Güven skorunun bileşenleri: temel, güç, uyum, cezalar")
+    indicators: dict | None = Field(description="O geceki gösterge değerleri (RSI, MACD, MA, ATR, vol20…)")
+    calibration: dict | None = Field(description="Geçmiş isabet (varsa)")
+    band: Band = Field(description="Ensemble tahmin bandı p10 / p50 / p90")
+    comment: str | None = Field(description="Yapay zekâ yorumu (varsa)")
+    disclaimer: str = "Model sinyalidir, yatırım tavsiyesi değildir."
