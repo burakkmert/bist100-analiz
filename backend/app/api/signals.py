@@ -1,4 +1,4 @@
-"""Sinyal uçları (Görev 7): /signals, /signals/track-record.
+"""Sinyal uçları (Görev 7 + Aşama 2): /signals, /signals/track-record, /signals/{id}/explain.
 
 Sinyalleri gece engine.run_signals üretir; bu uçlar yalnızca OKUR ve her sorgu user_id ile süzülür.
 "Sinyal sicili" modelin geçmiş isabetini şeffaf gösterir (ufku dolan sinyallerin outcome'u).
@@ -8,14 +8,14 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.core.auth import CurrentUser, get_current_user
 from app.core.db import get_db
 from app.models import Signal as SignalRow
-from app.schemas.signals import RecordBucket, Signal, TrackRecord
+from app.schemas.signals import Band, RecordBucket, Signal, SignalExplanation, TrackRecord
 
 router = APIRouter(tags=["signals"])
 
@@ -36,20 +36,21 @@ def list_signals(
     elif status == "closed":
         q = q.where(SignalRow.outcome.is_not(None))
     rows = db.scalars(q.order_by(SignalRow.created_at.desc(), SignalRow.id.desc()).limit(limit)).all()
-    return [
-        Signal(
-            id=r.id,
-            code=r.code,
-            side=r.side,
-            horizon=r.horizon,
-            confidence=r.confidence or 0,
-            suggested_qty=None if r.suggested_qty is None else float(r.suggested_qty),
-            stop_level=None if r.stop_level is None else float(r.stop_level),
-            created_at=r.created_at,
-            outcome=r.outcome,
-        )
-        for r in rows
-    ]
+    return [_to_signal(r) for r in rows]
+
+
+def _to_signal(r: SignalRow) -> Signal:
+    return Signal(
+        id=r.id,
+        code=r.code,
+        side=r.side,
+        horizon=r.horizon,
+        confidence=r.confidence or 0,
+        suggested_qty=None if r.suggested_qty is None else float(r.suggested_qty),
+        stop_level=None if r.stop_level is None else float(r.stop_level),
+        created_at=r.created_at,
+        outcome=r.outcome,
+    )
 
 
 # Sonuçlanmış sinyallerin özeti: GROUPING SETS ile genel + yön + ufuk kırılımları tek sorguda.
@@ -102,3 +103,64 @@ def track_record(user: CurrentUser = Depends(get_current_user), db: Session = De
     mine, mine_by = _record(db, user.id)
     model, model_by = _record(db, None)
     return TrackRecord(open=n_open or 0, mine=mine, mine_by=mine_by, model=model, model_by=model_by)
+
+
+# --------------------------------------------------------------------------- /signals/{id}/explain
+
+# Sinyalin üretildiği gecenin (İstanbul tarihi) ya da ondan önceki en yakın analiz satırı
+_EXPLAIN_SQL = text(
+    """
+    SELECT a.*, e.text AS comment FROM analysis a
+    LEFT JOIN ai_explanations e ON e.code = a.code AND e.run_date = a.run_date AND e.horizon = a.horizon
+    WHERE a.code = :c AND a.horizon = :h
+      AND a.run_date <= (CAST(:created AS timestamptz) AT TIME ZONE 'Europe/Istanbul')::date
+    ORDER BY a.run_date DESC LIMIT 1
+    """
+)
+
+# confidence_parts ve takvim/rejim ayrıntıları ayrı alanlarda; gösterge listesinde tekrar edilmez
+_NOT_INDICATORS = {"confidence_parts", "calibration", "market_regime", "regime_details"}
+
+
+def _num(v):
+    return None if v is None else float(v)
+
+
+@router.get(
+    "/signals/{id}/explain",
+    response_model=SignalExplanation,
+    responses={**UNAUTHORIZED, 404: {"description": "Sinyal ya da analizi bulunamadı"}},
+)
+def explain_signal(
+    id: int,  # noqa: A002 — yol parametresi adı
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """ "Bu sinyal neden?" — model ağırlıkları, güven skorunun bileşenleri, göstergeler ve rejim.
+    Başka kullanıcının sinyali "yok" sayılır (404)."""
+    sig = db.scalar(select(SignalRow).where(SignalRow.id == id, SignalRow.user_id == user.id))
+    if sig is None:
+        raise HTTPException(404, "Sinyal bulunamadı")
+    a = (
+        db.execute(_EXPLAIN_SQL, {"c": sig.code, "h": sig.horizon, "created": sig.created_at})
+        .mappings()
+        .first()
+    )
+    if a is None:
+        raise HTTPException(404, "Bu sinyalin dayandığı analiz bulunamadı")
+    ind = a["indicators"] or {}
+    return SignalExplanation(
+        signal=_to_signal(sig),
+        run_date=a["run_date"],
+        direction=a["direction"],
+        confidence=a["confidence"],
+        risk=a["risk"],
+        regime=a["regime"],
+        market_regime=ind.get("market_regime"),
+        weights=a["weights"],
+        confidence_parts=ind.get("confidence_parts"),
+        indicators={k: v for k, v in ind.items() if k not in _NOT_INDICATORS},
+        calibration=ind.get("calibration"),
+        band=Band(low=_num(a["low"]), mid=_num(a["mid"]), high=_num(a["high"])),
+        comment=a["comment"],
+    )
