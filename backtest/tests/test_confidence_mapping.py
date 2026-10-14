@@ -63,3 +63,15 @@ def test_mapped_probabilities_are_better_calibrated_than_raw_score_out_of_sample
     s = summarize(ev).set_index("type")
     assert s.loc["fund", "ece_esleme_gosterilen"] < s.loc["fund", "ece_ham_gosterilen"]
     assert s.loc["stock", "guven_gosterilen_pay"] == 0.0                      # hissede güven gösterilmez
+
+
+def test_tiny_key_is_never_informative_even_with_lucky_pattern():
+    rng = np.random.default_rng(5)
+    n = 100                                                     # MIN_KEY_N'in altında
+    conf = np.concatenate([rng.integers(30, 50, 50), rng.integers(60, 70, 50)])
+    hit = np.concatenate([np.zeros(50), np.ones(50)])           # "mükemmel" ama tesadüfi örüntü
+    d = pd.DataFrame({"type": "stock", "horizon": 20, "direction": "up", "confidence": conf, "hit": hit,
+                      "origin": pd.Timestamp("2025-06-01"), "inside": 0.5, "up_move": 0.5})
+    m = fit_mapping(d)
+    assert m["keys"]["stock|20|up"]["informative"] is False
+    assert not display_confidence(m, "stock", 20, "up", 65)["shown"]
