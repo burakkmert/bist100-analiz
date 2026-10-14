@@ -19,6 +19,8 @@ os.environ["SUPABASE_JWT_SECRET"] = TEST_JWT_SECRET
 os.environ["MOCK"] = "0"
 os.environ["AUTH_DEV_BYPASS"] = "0"
 os.environ["APP_ENV"] = "test"
+os.environ["RATE_LIMIT_PER_MIN"] = "0"  # sınırın kendisi test_ratelimit.py'de ayrı uygulamayla sınanır
+os.environ["RATE_LIMIT_AI_PER_MIN"] = "0"
 
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402

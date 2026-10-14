@@ -1,0 +1,16 @@
+type,horizon,direction,n_test,informative,ece_raw,ece_mapped
+fund,1,flat,1945,False,0.425,
+fund,1,up,4584,False,0.269,
+fund,5,flat,1822,False,0.509,
+fund,5,up,4716,True,0.15,0.033
+fund,20,flat,1201,False,0.483,
+fund,20,up,5012,True,0.088,0.037
+stock,1,down,37,False,0.313,
+stock,1,flat,11019,False,0.328,
+stock,1,up,39,False,0.117,
+stock,5,down,34,False,0.188,
+stock,5,flat,10584,False,0.344,
+stock,5,up,30,False,0.22,
+stock,20,down,39,False,0.228,
+stock,20,flat,10063,False,0.368,
+stock,20,up,39,False,0.203,

@@ -34,6 +34,10 @@ class Settings(BaseSettings):
 
     expo_access_token: str = ""
 
+    # İstek sınırı (dakikada, kullanıcı başına). 0 = kapalı. Ayrıntı: app/core/ratelimit.py
+    rate_limit_per_min: int = 120
+    rate_limit_ai_per_min: int = 10
+
     @field_validator("database_url")
     @classmethod
     def _psycopg_driver(cls, v: str) -> str:
