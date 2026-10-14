@@ -89,3 +89,33 @@ def test_gecici_503_tekrar_denenir():
     finally:
         ej.asyncio.sleep = orig
     assert rows[0].source == "llm" and Flaky.calls == 2
+
+
+# ---- Güven kalibrasyonu (Kişi 1: hisselerde ham güven isabeti ayırt etmiyor) ----------------------------
+
+STOCK = {**A, "asset_type": "stock", "confidence": 92}
+FUND_UP5 = {**A, "code": "GSP", "asset_type": "fund", "confidence": 82}
+
+
+def test_hisse_sablonu_guclu_ifade_kullanmaz():
+    t = template_text(STOCK)
+    assert "büyük ölçüde" not in t and "zayıf" in t and "belirsizlik yüksek" in t
+    assert validate(t, STOCK) is None
+
+
+def test_fon_5g_yukari_sinyalde_guven_anlamli():
+    t = template_text(FUND_UP5)
+    assert "büyük ölçüde uzlaşıyor" in t and "82/100" in t
+    assert validate(t, FUND_UP5) is None
+
+
+def test_hissede_yuksek_guven_ifadesi_reddedilir():
+    text = "Modeller 5 günlük ufukta yükseliş yönünde; güven 92 ile yüksek güvenli bir görünüm var, aralık 298,2 – 333,5."
+    assert "güçlü güven" in validate(text, STOCK)
+    assert validate(text, {**FUND_UP5, "confidence": 92}) is None  # fonda bu ufukta güven anlamlı
+
+
+def test_gecmis_isabet_orani_kullanilir():
+    a = {**STOCK, "hit_rate": 0.57}
+    t = template_text(a)
+    assert "%57" in t and validate(t, a) is None

@@ -7,10 +7,10 @@ Maliyet ve ücretsiz kota için:
 Halüsinasyona karşı: LLM metninde analizde olmayan bir sayı geçerse ya da korkuluk ihlali varsa
 o yorum reddedilir ve şablon kullanılır.
 
-Kişi 2 için: veritabanı bağlanınca `ExplainSource` ve `ExplanationSink`'in DB sürümleri yazılır
-(analysis/signals/watchlist tablolarından okuyup ai_explanations'a upsert). Şimdilik JSON dosyalarıyla çalışır.
-
-Elle çalıştırma (backend/ klasöründen):
+Kaynak/hedef iki türlü:
+  • Veritabanı (asıl kullanım, gece işi 22:00):  python -m app.ai.explain_job --db
+    analysis/signals/watchlist'ten okur, ai_explanations'a upsert eder (app/ai/db.py).
+  • JSON dosyası (deneme, veritabanı yokken):
     python -m app.ai.explain_job --input app/ai/samples/analyses.json --out explanations.json
 """
 from __future__ import annotations
@@ -27,7 +27,7 @@ from typing import Any, Iterable, Protocol
 
 from . import guardrails
 from .chat import load_prompt
-from .context import describe
+from .context import confidence_is_informative, describe, hit_rate_pct
 from .provider import LLMProvider, get_provider
 from .settings import load_env
 
@@ -100,9 +100,17 @@ def template_text(a: dict[str, Any]) -> str:
     h = a.get("horizon", 5)
     conf = a.get("confidence")
     d = _DIR.get(a.get("direction", ""), "belirsiz")
-    agree = "büyük ölçüde uzlaşıyor" if isinstance(conf, (int, float)) and conf >= 65 else "kısmen ayrışıyor"
+    hr = hit_rate_pct(a)
+    if confidence_is_informative(a):
+        agree = "büyük ölçüde uzlaşıyor" if isinstance(conf, (int, float)) and conf >= 65 else "kısmen ayrışıyor"
+        first = f"Modeller {h} günlük ufukta {d} yönünde {agree} (güven {conf}/100)."
+    else:
+        # Kalibrasyon: hisselerde ham güven isabeti ayırt etmiyor → güçlü ifade yok
+        why = f"geçmişte benzer sinyallerin %{hr}'i gerçekleşti" if hr is not None else (
+            f"ham güven skoru {conf}/100; bu skor geçmişte isabeti ayırt etmedi")
+        first = f"Modeller {h} günlük ufukta {d} yönüne işaret ediyor, ancak yön sinyali zayıf ve belirsizlik yüksek ({why})."
     r = a.get("range") or {}
-    parts = [f"Modeller {h} günlük ufukta {d} yönünde {agree} (güven {conf}/100)."]
+    parts = [first]
     if r.get("low") is not None and r.get("high") is not None:
         parts.append(f"Fiyatın bu sürede %80 olasılıkla {_fmt(r['low'])} – {_fmt(r['high'])} aralığında kalması bekleniyor.")
     tail = []
@@ -117,6 +125,7 @@ def template_text(a: dict[str, Any]) -> str:
 
 # ---- Doğrulama -------------------------------------------------------------------------------------------
 
+_STRONG = re.compile(r"yüksek güven|güveni? (?:çok )?yüksek|güçlü (?:bir )?(?:sinyal|uzlaşı)|büyük ölçüde uzlaş|kuvvetli", re.I)
 _NUM = re.compile(r"(?<![\w])\d+(?:[.,]\d+)?")
 
 
@@ -138,6 +147,9 @@ def _numbers_in(obj: Any) -> set[float]:
 def unknown_numbers(text: str, analysis: dict[str, Any]) -> list[str]:
     """Metinde geçip analizde (makul yuvarlamayla) karşılığı olmayan sayılar."""
     allowed = _numbers_in(analysis) | {80.0, 10.0, 90.0, 50.0, 100.0}  # %80 aralık, p10/p90, /100 gibi sabitler
+    hr = hit_rate_pct(analysis)
+    if hr is not None:
+        allowed.add(float(hr))  # "benzer sinyallerin %57'si" (0.57 olarak gelmiş olabilir)
     bad = []
     for m in _NUM.findall(text):
         v = float(m.replace(",", "."))
@@ -158,6 +170,8 @@ def validate(text: str, analysis: dict[str, Any]) -> str | None:
         return "çok uzun"
     if guardrails.violations(t):
         return "korkuluk ihlali: " + ",".join(guardrails.violations(t))
+    if not confidence_is_informative(analysis) and _STRONG.search(t):
+        return "güçlü güven ifadesi (kalibrasyona göre bu varlıkta güven isabeti ayırt etmiyor)"
     bad = unknown_numbers(t, analysis)
     if bad:
         return "analizde olmayan sayı: " + ", ".join(bad[:3])
@@ -273,21 +287,36 @@ def main() -> None:
     ap.add_argument("--input", default=str(Path(__file__).parent / "samples" / "analyses.json"))
     ap.add_argument("--out", default="explanations.json")
     ap.add_argument("--provider", default=None, help="varsayılan: LLM_PROVIDER")
-    ap.add_argument("--run-date", default=time.strftime("%Y-%m-%d"))
+    ap.add_argument("--run-date", default=None, help="vars.: bugün (JSON) / analysis'teki en son tarih (--db)")
     ap.add_argument("--delay", type=float, default=4.0, help="LLM çağrıları arası bekleme (sn)")
     ap.add_argument("--max-llm", type=int, default=200, help="bir gecede en fazla LLM çağrısı")
+    ap.add_argument("--db", action="store_true", help="veritabanından oku, ai_explanations'a yaz (DATABASE_URL)")
     args = ap.parse_args()
+    args.run_date_given = args.run_date is not None
+    args.run_date = args.run_date or time.strftime("%Y-%m-%d")
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     provider = get_provider(args.provider)
+    if args.db:
+        from .db import DbExplainSource, DbExplanationSink
+
+        source = DbExplainSource.from_app(args.run_date if args.run_date_given else None)
+        run_date = source.resolve_run_date()
+        if not run_date:
+            print("analysis tablosunda satır yok; yazılacak yorum yok.")
+            return
+        targets, sink, where = source.targets(), DbExplanationSink.from_app(), "ai_explanations"
+    else:
+        run_date = args.run_date
+        targets, sink, where = JsonSource(Path(args.input)).targets(), JsonSink(Path(args.out)), args.out
     rows, rep = asyncio.run(
-        run_job(JsonSource(Path(args.input)).targets(), provider, args.run_date, delay=0 if provider.name == "fake" else args.delay, max_llm=args.max_llm)
+        run_job(targets, provider, run_date, delay=0 if provider.name == "fake" else args.delay, max_llm=args.max_llm)
     )
-    JsonSink(Path(args.out)).save(rows)
-    print(f"{rep.total} varlık · LLM {rep.llm} · şablon {rep.template} · reddedilip şablona dönen {rep.fallback} · {rep.seconds} sn")
+    sink.save(rows)
+    print(f"{run_date} · {rep.total} satır · LLM {rep.llm} · şablon {rep.template} · reddedilip şablona dönen {rep.fallback} · {rep.seconds} sn")
     for r in rep.fallback_reasons:
         print("  ↳", r)
-    print(f"Yazıldı: {args.out}")
+    print(f"Yazıldı: {where}")
 
 
 if __name__ == "__main__":

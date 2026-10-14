@@ -36,7 +36,7 @@ HERE = Path(__file__).parent
 DEMO_SOURCE = StaticAnalysisSource(
     {
         "THYAO": {
-            "code": "THYAO", "horizon": 5, "direction": "up", "confidence": 68, "risk": "medium", "regime": "trend",
+            "code": "THYAO", "asset_type": "stock", "horizon": 5, "direction": "up", "confidence": 68, "risk": "medium", "regime": "trend",
             "range": {"low": 298.2, "mid": 316.0, "high": 333.5},
             "indicators": {"rsi": 58.2, "macd_hist": 0.4, "ma20_above_ma50": True, "atr_pct": 2.1},
             "weights": {"timesfm": 0.6, "chronos": 0.4},

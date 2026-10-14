@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
-import { putProfile } from '@/api/profile';
+import { patchProfile } from '@/api/profile';
 import { AppText, Badge, Button, GlassCard, GlassIcon, Screen, TextField, type IconName } from '@/components/ui';
 import { useSettings, type RiskProfile } from '@/store/settings';
 import { radius } from '@/theme/colors';
@@ -95,7 +95,7 @@ export default function RiskProfileScreen() {
     setBusy(true);
     setError(null);
     try {
-      await putProfile({ risk_profile: profile, budget: parsed });
+      await patchProfile({ risk_profile: profile, budget: parsed });
       save(profile, parsed); // kök düzendeki koruma ana sayfaya yönlendirir
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Kaydedilemedi.');

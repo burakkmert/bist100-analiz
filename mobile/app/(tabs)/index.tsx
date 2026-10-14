@@ -10,6 +10,7 @@ import { AppText, Badge, Disclaimer, GlassCard, GlassIcon, Screen, Skeleton } fr
 import { useIndex, useSignals } from '@/api/assets';
 import { formatPct, formatPrice, formatTRY } from '@/lib/format';
 import { usePortfolioView } from '@/lib/portfolio';
+import { useSettings } from '@/store/settings';
 import { useAuth } from '@/store/auth';
 import { useTheme } from '@/theme/ThemeProvider';
 
@@ -26,6 +27,7 @@ export default function Home() {
   const email = useAuth((s) => s.user?.email);
   const [sparkW, setSparkW] = useState(0);
   const portfolio = usePortfolioView();
+  const notificationsOn = useSettings((s) => s.notificationsEnabled);
   const ps = portfolio.summary;
   const index = useIndex();
   const signals = useSignals();
@@ -41,7 +43,9 @@ export default function Home() {
             {email?.split('@')[0] ?? 'Hoş geldiniz'}
           </AppText>
         </View>
-        <GlassIcon name="notifications-outline" size={42} tone="neutral" />
+        <Pressable onPress={() => router.push('/notifications')} accessibilityRole="button" accessibilityLabel="Bildirim ayarları" hitSlop={6}>
+          <GlassIcon name={notificationsOn ? 'notifications' : 'notifications-outline'} size={42} tone={notificationsOn ? 'accent' : 'neutral'} />
+        </Pressable>
       </Animated.View>
 
       {/* Portföy özeti */}
