@@ -10,7 +10,7 @@ from app.jobs import nightly
 from app.jobs.nightly import Result
 
 CFG = nightly.load_config()
-DAYS = [date(2026, 8, 11), date(2026, 8, 12)]  # Salı, Çarşamba
+DAYS = [date(2026, 8, 11), date(2026, 8, 12), date(2026, 8, 13)]  # Salı, Çarşamba, Perşembe
 
 
 class FakeRunner:
@@ -52,11 +52,11 @@ def test_yapilandirma():
 def test_basarili_zincir(eng):
     run = FakeRunner()
     st = nightly.run_chain(eng, DAYS[0], CFG, runner=run, wait=False)
-    assert run.calls == ["collect", "forecast", "engine", "signals", "push"]  # explain kapalı
-    assert st["explain"] == "disabled" and st["push"] == "success"
+    assert run.calls == ["collect", "forecast", "engine", "signals", "explain", "push"]
+    assert st["explain"] == "success" and st["push"] == "success"
     # Kendi kaydını yazmayan adımların job_runs satırını zincir yazar
     rows = {r.job_name: r for r in _rows(eng, DAYS[0])}
-    assert set(rows) == {"collect", "forecast"}
+    assert set(rows) == {"collect", "forecast", "explain"}
     assert rows["collect"].status == "success" and rows["collect"].stats["exit_code"] == 0
 
 
@@ -69,7 +69,7 @@ def test_hata_zinciri_keser_sonra_kaldigi_yerden_devam(eng):
         "forecast": "failed",
         "engine": "skipped",
         "signals": "skipped",
-        "explain": "disabled",
+        "explain": "skipped",
         "push": "skipped",
     }
     rows = _rows(eng, DAYS[1])
@@ -80,8 +80,16 @@ def test_hata_zinciri_keser_sonra_kaldigi_yerden_devam(eng):
     # Sorun giderildi, zincir yeniden başlatıldı: collect tekrar çalışmaz
     run2 = FakeRunner()
     st2 = nightly.run_chain(eng, DAYS[1], CFG, runner=run2, wait=False)
-    assert run2.calls == ["forecast", "engine", "signals", "push"]
+    assert run2.calls == ["forecast", "engine", "signals", "explain", "push"]
     assert st2["collect"] == "done"
+
+
+def test_zorunlu_olmayan_adim_zinciri_kesmez(eng):
+    """Yapay zekâ yorumu (explain) çökse de bildirimler gider."""
+    run = FakeRunner(fail={"explain"})
+    st = nightly.run_chain(eng, DAYS[2], CFG, runner=run, wait=False)
+    assert st["explain"] == "failed" and st["push"] == "success"
+    assert run.calls[-1] == "push"
 
 
 def test_tatilde_calismaz(eng):

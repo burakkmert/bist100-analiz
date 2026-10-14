@@ -31,13 +31,13 @@ steps:
     cwd: repo
     records_self: true
     timeout_min: 10
-  - job: explain                # Kişi 3; --db modu birleşince enabled: true yapılır
+  - job: explain                # Kişi 3 (#42: --db modu)
     at: "22:00"
     cmd: ["-m", "app.ai.explain_job", "--db", "--run-date", "{date}"]
     cwd: backend
     records_self: false
     required: false             # başarısız olsa da bildirim gider
-    enabled: false
+    enabled: true
     timeout_min: 15
   - job: push
     at: "22:15"
