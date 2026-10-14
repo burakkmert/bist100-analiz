@@ -8,6 +8,7 @@ Walk-forward test: model hiçbir zaman tahmin anından sonraki veriyi görmez.
 | `walk_forward.py` | Son 2 yılda (504 gün) haftalık tahmin günleri; model yalnızca o güne kadarki veriyi görür |
 | `run_backtest.py` | Giriş noktası: walk-forward → model×ufuk ve hisse/fon×model×ufuk tabloları + `summary_<tarih>.json` |
 | `by_category.py` | Fon kategorisine göre kırılım: `python -m backtest.by_category --raw backtest\reports\raw_<tarih>_ctx512.parquet` → MASE, kapsama, naive_drift'e karşı DM (kategori TEFAS'tan, yoksa fon adından) |
+| `drift_search.py` | Fonlarda trend iyileştirme deneyi: kategori bazında trend penceresi (20–500 gün) ve yumuşatma; seçim ilk yarıda, ölçüm ikinci yarıda (zamana göre bölünmüş), Diebold–Mariano; `python -m backtest.drift_search` |
 | `confidence_calibration.py` | Güven skoru kalibrasyonu: Kişi 2'nin karar motorunu (`engine.decision.analyze`) geçmiş tahmin günlerinde yeniden çalıştırır; `python -m backtest.confidence_calibration --raw backtest\reports\raw_<tarih>.parquet` → güven aralığına göre gerçek isabet oranı, kıyas oranı, Spearman |
 | `confidence_mapping.py` | Güven puanı → geçmiş isabet oranı eşlemesi (izotonik) + flat için tavan; zamana göre bölünüp ECE ile doğrulanır; çıktı `summary/confidence_mapping.json` (Kişi 2'nin motoru `display_confidence` / `capped_confidence` ile okur) |
 
