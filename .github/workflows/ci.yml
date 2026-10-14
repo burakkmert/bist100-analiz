@@ -71,3 +71,5 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
       - run: npm ci
       - run: npx tsc --noEmit
+      - name: ESLint (Kişi 3 kodu; yalnızca hatalar CI'ı durdurur, uyarılar durdurmaz)
+        run: npx eslint . --max-warnings=-1
