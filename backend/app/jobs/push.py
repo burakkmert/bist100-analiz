@@ -30,6 +30,7 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy import Engine, create_engine, text
 
 from app.core.clock import TR, now_tr
+from app.core.config import get_settings
 from app.jobs.expo import ExpoClient, PushClient, is_expo_token
 
 log = logging.getLogger("jobs.push")
@@ -361,7 +362,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dry-run", action="store_true", help="Gönderme; planı günlüğe yaz")
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    url = os.environ.get("DATABASE_URL")
+    url = os.environ.get("DATABASE_URL") and get_settings().database_url  # sürücü öneki düzeltilmiş
     if not url:
         print("DATABASE_URL gerekli", file=sys.stderr)
         return 2

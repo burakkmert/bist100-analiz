@@ -155,6 +155,14 @@ def market_regime(prices: pd.DataFrame, cfg: dict) -> str | None:
     return reg.classify(px.drop(columns="code"), cfg.get("regime")).name
 
 
+def db_url(url: str) -> str:
+    """Supabase/Render "postgresql://" metnini psycopg (3) sürücüsüne çevirir (psycopg2 kurulu değil)."""
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix) :]
+    return url
+
+
 def load_calibration(cfg: dict) -> dict | None:
     """config.yaml 'calibration' bölümü; dosya yoksa ya da kapalıysa None (ham puanlar kullanılır)."""
     c = cfg.get("calibration") or {}
@@ -339,7 +347,7 @@ def main(argv: list[str] | None = None) -> int:
         print("DATABASE_URL ortam değişkeni gerekli (.env'deki gibi)", file=sys.stderr)
         return 2
     codes = [c.upper() for c in args.codes] if args.codes else None
-    return run(create_engine(url), args.date, codes, args.dry_run)
+    return run(create_engine(db_url(url)), args.date, codes, args.dry_run)
 
 
 if __name__ == "__main__":
