@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "buckets": [
+    "<50",
+    "50-59",
+    "60-69",
+    "70-79",
+    "80-89",
+    "90-100"
+  ],
+  "keys": {
+    "fund|1|down": {
+      "informative": false,
+      "base_rate": 0.1792,
+      "n": 51,
+      "fitted": {},
+      "suggested_cap": null,
+      "reason": "yetersiz örnek"
+    },
+    "fund|1|flat": {
+      "informative": false,
+      "base_rate": 0.2399,
+      "n": 4356,
+      "fitted": {
+        "<50": 0.4161,
+        "50-59": 0.4161,
+        "60-69": 0.4161,
+        "70-79": 0.4161,
+        "80-89": 0.4161,
+        "90-100": 0.42
+      },
+      "suggested_cap": 42,
+      "reason": "güven isabeti ayırt etmiyor (en yüksek eşlenen oran 0.42, kıyas 0.24, Spearman -0.03)",
+      "spearman": -0.028
+    },
+    "fund|1|up": {
+      "informative": false,
+      "base_rate": 0.8208,
+      "n": 8799,
+      "fitted": {
+        "<50": 0.9012,
+        "50-59": 0.9012,
+        "60-69": 0.9012,
+        "70-79": 0.9012,
+        "80-89": 0.9012
+      },
+      "suggested_cap": null,
+      "reason": "güven isabeti ayırt etmiyor (en yüksek eşlenen oran 0.90, kıyas 0.82, Spearman -0.06)",
+      "spearman": -0.064
+    },
+    "fund|5|down": {
+      "informative": false,
+      "base_rate": 0.1444,
+      "n": 22,
+      "fitted": {},
+      "suggested_cap": null,
+      "reason": "yetersiz örnek"
+    },
+    "fund|5|flat": {
+      "informative": false,
+      "base_rate": 0.134,
+      "n": 3976,
+      "fitted": {
+        "50-59": 0.3246,
+        "60-69": 0.3316,
+        "70-79": 0.3316,
+        "80-89": 0.3316,
+        "90-100": 0.3316
+      },
+      "suggested_cap": 33,
+      "reason": "güven isabeti ayırt etmiyor (en yüksek eşlenen oran 0.33, kıyas 0.13, Spearman -0.04)",
+      "spearman": -0.037
+    },
+    "fund|5|up": {
+      "informative": true,
+      "base_rate": 0.8556,
+      "n": 9208,
+      "fitted": {
+        "<50": 0.8968,
+        "50-59": 0.8968,
+        "60-69": 0.9005,
+        "70-79": 0.9354,
+        "80-89": 0.9833,
+        "90-100": 0.9993
+      },
+      "suggested_cap": null,
+      "reason": "güven isabeti ayırt ediyor",
+      "spearman": 0.182
+    },
+    "fund|20|down": {
+      "informative": false,
+      "base_rate": 0.0994,
+      "n": 20,
+      "fitted": {},
+      "suggested_cap": null,
+      "reason": "yetersiz örnek"
+    },
+    "fund|20|flat": {
+      "informative": false,
+      "base_rate": 0.1063,
+      "n": 2631,
+      "fitted": {
+        "<50": 0.3212,
+        "50-59": 0.3212,
+        "60-69": 0.3212,
+        "70-79": 0.3212,
+        "80-89": 0.3212,
+        "90-100": 0.3212
+      },
+      "suggested_cap": 32,
+      "reason": "güven isabeti ayırt etmiyor (en yüksek eşlenen oran 0.32, kıyas 0.11, Spearman -0.08)",
+      "spearman": -0.075
+    },
+    "fund|20|up": {
+      "informative": true,
+      "base_rate": 0.9006,
+      "n": 10227,
+      "fitted": {
+        "<50": 0.8054,
+        "50-59": 0.8054,
+        "60-69": 0.8105,
+        "70-79": 0.8874,
+        "80-89": 0.9467,
+        "90-100": 0.9882
+      },
+      "suggested_cap": null,
+      "reason": "güven isabeti ayırt ediyor",
+      "spearman": 0.216
+    },
+    "stock|1|down": {
+      "informative": false,
+      "base_rate": 0.6055,
+      "n": 90,
+      "fitted": {},
+      "suggested_cap": null,
+      "reason": "yetersiz örnek"
+    },
+    "stock|1|flat": {
+      "informative": false,
+      "base_rate": 0.5662,
+      "n": 22878,
+      "fitted": {
+        "50-59": 0.2818,
+        "60-69": 0.3956,
+        "70-79": 0.5182,
+        "80-89": 0.5736,
+        "90-100": 0.5736
+      },
+      "suggested_cap": 57,
+      "reason": "güven isabeti ayırt etmiyor (en yüksek eşlenen oran 0.57, kıyas 0.57, Spearman 0.03)",
+      "spearman": 0.033
+    },
+    "stock|1|up": {
+      "informative": false,
+      "base_rate": 0.3945,
+      "n": 65,
+      "fitted": {},
+      "suggested_cap": null,
+      "reason": "yetersiz örnek"
+    },
+    "stock|5|down": {
+      "informative": false,
+      "base_rate": 0.5289,
+      "n": 73,
+      "fitted": {},
+      "suggested_cap": null,
+      "reason": "yetersiz örnek"
+    },
+    "stock|5|flat": {
+      "informative": false,
+      "base_rate": 0.5671,
+      "n": 22445,
+      "fitted": {
+        "50-59": 0.3218,
+        "60-69": 0.4092,
+        "70-79": 0.5163,
+        "80-89": 0.5737,
+        "90-100": 0.5737
+      },
+      "suggested_cap": 57,
+      "reason": "güven isabeti ayırt etmiyor (en yüksek eşlenen oran 0.57, kıyas 0.57, Spearman 0.02)",
+      "spearman": 0.017
+    },
+    "stock|5|up": {
+      "informative": false,
+      "base_rate": 0.4711,
+      "n": 68,
+      "fitted": {},
+      "suggested_cap": null,
+      "reason": "yetersiz örnek"
+    },
+    "stock|20|down": {
+      "informative": false,
+      "base_rate": 0.4977,
+      "n": 105,
+      "fitted": {},
+      "suggested_cap": null,
+      "reason": "yetersiz örnek"
+    },
+    "stock|20|flat": {
+      "informative": false,
+      "base_rate": 0.5489,
+      "n": 21872,
+      "fitted": {
+        "<50": 0.2857,
+        "50-59": 0.4431,
+        "60-69": 0.478,
+        "70-79": 0.5263,
+        "80-89": 0.5559,
+        "90-100": 0.5559
+      },
+      "suggested_cap": 56,
+      "reason": "güven isabeti ayırt etmiyor (en yüksek eşlenen oran 0.56, kıyas 0.55, Spearman 0.00)",
+      "spearman": 0.003
+    },
+    "stock|20|up": {
+      "informative": false,
+      "base_rate": 0.5023,
+      "n": 102,
+      "fitted": {},
+      "suggested_cap": null,
+      "reason": "yetersiz örnek"
+    }
+  },
+  "rules": {
+    "min_n": 30,
+    "min_key_n": 300,
+    "min_gain": 0.05,
+    "min_edge": 0.02,
+    "min_spearman": 0.05
+  }
+}
