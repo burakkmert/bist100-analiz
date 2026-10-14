@@ -2,7 +2,6 @@
 
 *Yazan: Kişi 2 (Zahide Torun). Tez birleştirmesi için taslak; şekil ve tablo numaraları birleştirmede verilecektir.*
 
-> Not: Köşeli parantez içindeki **[ölçülecek]** işaretli değerler, sunucu yayına alındıktan sonra gerçek ölçümle doldurulacaktır.
 
 ---
 
@@ -69,14 +68,26 @@ API, `shared/openapi.yaml` sözleşmesindeki uç noktaları gerçekler:
 
 **Performans.** Varlık listesi her varlık için yalnızca son iki fiyat satırını birincil anahtar indeksi üzerinden okur; yaklaşık bir milyon satırlık fiyat tablosu taranmaz. Veri günde bir kez değiştiği için aramasız liste 60 saniye bellekte tutulur. Türkçe arama için `İ/I/ı/i` harfleri eşdeğer sayılır ("iş", "İŞ" ve "IS" aynı sonucu verir).
 
-| Uç nokta | Ortalama yanıt süresi | 95. yüzdelik |
-|---|---|---|
-| `GET /assets` | [ölçülecek] | [ölçülecek] |
-| `GET /assets/{code}/analysis` | [ölçülecek] | [ölçülecek] |
-| `GET /portfolio` | [ölçülecek] | [ölçülecek] |
-| `GET /signals` | [ölçülecek] | [ölçülecek] |
+Yanıt süreleri, yayındaki sunucuya (Render ücretsiz katmanı, Frankfurt; veritabanı Supabase, Frankfurt) Türkiye'deki bir dizüstü bilgisayardan, giriş yapmış bir kullanıcının token'ıyla ölçüldü. Her uç nokta 30 kez çağrıldı (14 Ekim 2026, `backend/scripts/olc_yanit_suresi.py`). "Sunucu içi" sütunu, sunucunun her yanıta eklediği `Server-Timing` başlığından alınan, ağ gecikmesi hariç işlem süresinin medyanıdır.
 
-*Tablo X. API yanıt süreleri.*
+| Uç nokta | Ortalama (ms) | Medyan (ms) | 95. yüzdelik (ms) | Sunucu içi, medyan (ms) |
+|---|---|---|---|---|
+| `GET /health` | 788 | 467 | 1910 | 12,9 |
+| `GET /assets` | 923 | 594 | 2203 | 25,2 |
+| `GET /assets?type=fund&q=a` | 642 | 498 | 1472 | 47,0 |
+| `GET /assets/{code}/history?days=365` | 707 | 519 | 2429 | 44,5 |
+| `GET /assets/{code}/forecast` | 915 | 516 | 2421 | 52,1 |
+| `GET /assets/{code}/analysis?horizon=5` | 671 | 497 | 2084 | 39,1 |
+| `GET /screener?direction=up` | 600 | 510 | 1240 | 36,7 |
+| `GET /portfolio` | 682 | 473 | 2122 | 34,7 |
+| `GET /signals?status=open` | 536 | 462 | 1170 | 35,3 |
+| `GET /signals/track-record` | 468 | 479 | 517 | 43,2 |
+
+*Tablo X. API yanıt süreleri (n = 30).*
+
+Sunucu içi işlem süresi bütün uç noktalarda 13–52 ms aralığındadır. Bu, "toplu hesapla, anlık oku" ilkesinin (Bölüm 1.1) beklenen sonucudur: hiçbir istek model ya da gösterge hesabı yapmaz, yalnızca indeksli sorgularla hazır sonucu okur. Kullanıcının gördüğü süreyi ise ağ belirler. Medyan uçtan uca süre yaklaşık 0,5 saniyedir ve bunun büyük kısmı Türkiye–Frankfurt gidiş-dönüşü ile her istekte yeniden kurulan TLS bağlantısıdır (ölçüm betiği bağlantıyı yeniden kullanmaz; mobil uygulama kullandığından pratikte daha kısadır). 95. yüzdelikteki 1–2,5 saniyelik değerler, ücretsiz katmanın paylaşımlı altyapısındaki dalgalanmalardan kaynaklanır; sunucu içi sürelerde benzer bir sıçrama yoktur.
+
+Ücretsiz katmanda sunucu 15 dakika boyunca istek almazsa uyur ve ilk istekte yaklaşık bir dakikada uyanır. Ölçüm sırasında sunucu yakın zamanda kullanılmış olduğundan ilk istek 2,6 saniye sürdü. Bu bekleme, ücretli bir katmanda ya da düzenli bir "uyandırma" isteğiyle ortadan kalkar.
 
 ### 1.4 Gece zinciri
 
