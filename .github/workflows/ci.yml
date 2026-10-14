@@ -72,4 +72,14 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - name: ESLint (Kişi 3 kodu; yalnızca hatalar CI'ı durdurur, uyarılar durdurmaz)
-        run: npx eslint . --max-warnings=-1
+        # Hatalar GitHub'da dosya/satır notu (annotation) olarak da görünsün diye JSON'dan çevrilir
+        run: |
+          npx eslint . -f json -o /tmp/eslint.json || true
+          node -e '
+            const r = require("/tmp/eslint.json"); let errors = 0;
+            for (const f of r) for (const m of f.messages) {
+              const lvl = m.severity === 2 ? "error" : "warning"; if (lvl === "error") errors++;
+              const file = f.filePath.replace(process.cwd() + "/", "mobile/");
+              console.log(`::${lvl} file=${file},line=${m.line || 1},col=${m.column || 1}::${m.ruleId || "eslint"}: ${m.message}`);
+            }
+            console.log(`ESLint: ${errors} hata`); process.exit(errors ? 1 : 0);'
