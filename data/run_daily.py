@@ -4,7 +4,7 @@ Adımlar:
   1) BIST hisseleri + XU100 endeksi (yfinance, artımlı)
   2) TEFAS fonları (tefasmak; evren listesi yoksa önce oluşturulur)
   3) Temizleme + doğrulama -> data/cache/reports/quality_<tarih>.json
-  4) --db verilirse: assets ve prices tablolarına upsert
+  4) --db verilirse: assets ve prices tablolarına upsert (XU100 type='index' olarak dahil)
 
 Çıkış kodu: hatalı varlık oranı --max-error-rate'i aşarsa 1 (job_runs 'failed' olsun diye), yoksa 0.
 
@@ -46,6 +46,19 @@ def load_universe(stock_codes: list[str] | None, fund_codes: list[str] | None) -
         funds = load_fund_list().assign(type="fund")
     cols = ["code", "name", "type", "sector", "is_active", "min_history_ok"]
     return pd.concat([stocks[cols], funds[cols]], ignore_index=True)
+
+
+def index_frames(px: pd.DataFrame, min_history: int = 120) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """XU100 için (assets satırı, prices satırları). Endeks yalnızca fiyat içindir (type='index'):
+    tahmin/sinyal üretilmez, Kişi 2'nin motoru piyasa geneli rejim için okur.
+    Bedelsiz/sıçrama düzeltmesi uygulanmaz (endekste bölünme olmaz); adj_close boşsa close ile doldurulur."""
+    px = px[px["close"] > 0].sort_values("date").drop_duplicates("date", keep="last").reset_index(drop=True) \
+        if not px.empty else px
+    if not px.empty:
+        px = px.assign(code=INDEX_CODE, adj_close=px["adj_close"].fillna(px["close"]))
+    asset = pd.DataFrame([{"code": INDEX_CODE, "name": "BIST 100 Endeksi", "type": "index", "sector": None,
+                           "is_active": True, "min_history_ok": bool(len(px) >= min_history)}])
+    return asset, px
 
 
 def upsert_assets_db(assets: pd.DataFrame, database_url: str) -> int:
@@ -112,6 +125,9 @@ def main(argv: list[str] | None = None) -> int:
         print("== 4) Veritabanı")
         ok = summary.set_index("code")["min_history_ok"]
         assets = universe.assign(min_history_ok=universe["code"].map(ok).fillna(False))
+        idx_asset, idx_prices = index_frames(read_cache(INDEX_CODE), 120)
+        if not idx_prices.empty:   # XU100 fiyatı yoksa asset de yazılmaz (boş endeks satırı anlamsız)
+            assets = pd.concat([assets, idx_asset], ignore_index=True)
         print(f"assets: {upsert_assets_db(assets, url)} satır")
         stock_frames = [df for c, df in cleaned.items() if types.get(c) == "stock"]
         stock_cal = market_calendar(stock_frames)
@@ -120,6 +136,8 @@ def main(argv: list[str] | None = None) -> int:
                                  stock_cal if types.get(c) == "stock" else None,
                                  events if types.get(c) == "stock" else None)
                     for c, df in cleaned.items() if not df.empty]
+        if not idx_prices.empty:
+            adjusted.append(idx_prices)
         prices = pd.concat(adjusted, ignore_index=True)  # adj_close: bedelsiz/hata düzeltilmiş
         print(f"prices: {bist_prices.upsert_prices_db(prices, url)} satır")
 
