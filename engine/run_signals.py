@@ -288,7 +288,7 @@ def main(argv: list[str] | None = None) -> int:
     if not url:
         print("DATABASE_URL gerekli", file=sys.stderr)
         return 2
-    return run(create_engine(url), args.date, args.dry_run)
+    return run(create_engine(run_engine.db_url(url)), args.date, args.dry_run)
 
 
 if __name__ == "__main__":

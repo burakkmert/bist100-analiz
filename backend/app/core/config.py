@@ -7,6 +7,7 @@ Okuma sırası: ortam değişkeni > backend/.env > repo kökündeki .env
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -36,6 +37,16 @@ class Settings(BaseSettings):
     # İstek sınırı (dakikada, kullanıcı başına). 0 = kapalı. Ayrıntı: app/core/ratelimit.py
     rate_limit_per_min: int = 120
     rate_limit_ai_per_min: int = 10
+
+    @field_validator("database_url")
+    @classmethod
+    def _psycopg_driver(cls, v: str) -> str:
+        """Supabase/Render bağlantı metni "postgresql://" ya da "postgres://" ile gelir; SQLAlchemy bunu
+        kurulu olmayan psycopg2 sürücüsüyle açmaya çalışır. Biz psycopg (3) kullanıyoruz."""
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                return "postgresql+psycopg://" + v[len(prefix) :]
+        return v
 
     @property
     def cors_origin_list(self) -> list[str]:

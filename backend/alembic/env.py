@@ -20,7 +20,8 @@ if config.config_file_name is not None:
 
 # Testler -x url=... ile farklı bir DB verebilir
 url = context.get_x_argument(as_dictionary=True).get("url") or get_settings().database_url
-config.set_main_option("sqlalchemy.url", url)
+# ConfigParser "%" işaretini değişken sanır; şifredeki %XX kodlamaları için kaçış gerekir
+config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
 target_metadata = Base.metadata
 
 

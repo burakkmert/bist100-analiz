@@ -1,0 +1,29 @@
+# Render "Blueprint" — API sunucusunu ücretsiz katmanda yayına alır (Kişi 2).
+# Kurulum adımları: docs/kisi2-yayina-alma.md
+# Veritabanı Render'da DEĞİL, Supabase'te (ücretsiz Render Postgres 30 günde siliniyor).
+services:
+  - type: web
+    name: fon-takip-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true            # main'e her birleştirmede yeniden yayınlanır
+    envVars:
+      - key: APP_ENV
+        value: prod
+      - key: MOCK
+        value: "0"
+      - key: AUTH_DEV_BYPASS
+        value: "0"
+      - key: CORS_ORIGINS
+        value: "*"
+      # Aşağıdakiler gizli; Render panelinde elle girilir (depoya yazılmaz)
+      - key: DATABASE_URL         # Supabase → Connect → Session pooler bağlantı metni
+        sync: false
+      - key: SUPABASE_URL         # https://<proje>.supabase.co
+        sync: false
+      - key: EXPO_ACCESS_TOKEN    # isteğe bağlı
+        sync: false

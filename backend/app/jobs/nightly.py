@@ -32,6 +32,7 @@ import yaml
 from sqlalchemy import Engine, create_engine, text
 
 from app.core.clock import TR, now_tr
+from app.core.config import get_settings
 
 log = logging.getLogger("jobs.nightly")
 
@@ -252,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-wait", action="store_true", help="--once: adım saatlerini bekleme")
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    url = os.environ.get("DATABASE_URL")
+    url = os.environ.get("DATABASE_URL") and get_settings().database_url  # sürücü öneki düzeltilmiş
     if not url:
         print("DATABASE_URL gerekli", file=sys.stderr)
         return 2
