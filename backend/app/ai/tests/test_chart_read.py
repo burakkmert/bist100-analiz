@@ -44,5 +44,17 @@ def test_veri_varsa_baglam_eklenir():
 
     src = StaticAnalysisSource({}, {"THYAO": [{"close": 300.0}, {"close": 312.5}]})
     out = asyncio.run(read_chart(IMG, "thyao", Spy(), src))
-    assert "son 312.5" in seen["system"]
+    assert "son 312.5" in seen["system"] and "değişim %4.2" in seen["system"]
     assert out["confidence_note"] == "Sayısal veriyle karşılaştırıldı."
+
+
+def test_fiyat_ozeti_destek_direnc_adaylari():
+    from app.ai.context import price_summary
+
+    # 100 ile 110 arasında gidip gelen fiyat: dipler ~100, tepeler ~110
+    closes = [100, 102, 105, 108, 110, 108, 105, 102, 100, 102, 105, 108, 110, 108, 105, 102, 100, 103, 106, 109, 110, 107]
+    out = price_summary([{"date": f"2026-01-{i + 1:02d}", "close": c} for i, c in enumerate(closes)])
+    assert "Destek adayları" in out and "100" in out.split("Destek adayları")[1].split("\n")[0]
+    assert "Direnç adayları" in out and "110" in out.split("Direnç adayları")[1].split("\n")[0]
+    assert "20 günlük ortalama" in out
+    assert price_summary([]) is None and price_summary([{"close": 1}]) is None

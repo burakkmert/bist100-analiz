@@ -1,5 +1,5 @@
 // Model sinyali kartı. Dil kuralı: emir kipi yok → "yükseliş yönlü model sinyali".
-// Dokununca varlık detayına gider.
+// Dokununca sinyal detayına gider (neden bu sinyal, stop seviyesi, "Aldım").
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -13,7 +13,7 @@ export function SignalCard({ signal }: { signal: Pick<Signal, 'id' | 'code' | 's
   const up = signal.side === 'buy';
   return (
     <Pressable
-      onPress={() => router.push(`/asset/${signal.code}`)}
+      onPress={() => router.push(`/signal/${signal.id}`)}
       accessibilityRole="button"
       accessibilityLabel={`${signal.code}, ${signal.horizon} günlük ${up ? 'yükseliş' : 'düşüş'} yönlü model sinyali, güven ${signal.confidence}`}
       style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}

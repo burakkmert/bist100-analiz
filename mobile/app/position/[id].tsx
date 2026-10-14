@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
+import { DateField } from '@/components/DateField';
 import { ModalShell } from '@/components/ModalShell';
 import { AppText, Badge, Button, Chips, GlassCard, TextField } from '@/components/ui';
 import { formatDate, formatPct, formatPrice, formatTRY } from '@/lib/format';
@@ -148,13 +149,12 @@ export default function PositionDetail() {
               ]}
             />
             {dateMode === 'other' ? (
-              <TextField
-                placeholder="GG.AA.YYYY"
-                keyboardType="numbers-and-punctuation"
+              <DateField
                 value={dateText}
-                onChangeText={setDateText}
+                onChange={setDateText}
                 error={errors.date}
-                icon="calendar-outline"
+                minimumISO={pos?.buy_date}
+                accessibilityLabel="Satış tarihi"
               />
             ) : null}
           </View>

@@ -30,9 +30,21 @@ except ImportError:  # pragma: no cover
         return {"id": "dev-anon"}
 
 
+_SOURCE: AnalysisSource | None = None
+
+
 def get_analysis_source() -> AnalysisSource:
-    """Kişi 2'nin DB oturumu hazır olunca burada DbAnalysisSource döndürülecek."""
-    return NullAnalysisSource()
+    """Veritabanı varsa (asıl backend) DbAnalysisSource; yoksa (yerel dev_server) NullAnalysisSource."""
+    global _SOURCE
+    if _SOURCE is None:
+        try:
+            from .db import DbAnalysisSource
+
+            _SOURCE = DbAnalysisSource.from_app()
+        except Exception as e:  # sqlalchemy / DATABASE_URL yok → veri olmadan çalış
+            logger.info("Veritabanı kaynağı yok, analiz verisi olmadan çalışılıyor: %r", e)
+            _SOURCE = NullAnalysisSource()
+    return _SOURCE
 
 
 logger = logging.getLogger("app.ai")
