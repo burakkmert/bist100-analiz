@@ -33,6 +33,7 @@ from typing import Any
 import pandas as pd
 import yaml
 
+from engine import calibration as cal
 from engine import ensemble as ens
 from engine import indicators as ind
 from engine import regime as reg
@@ -112,8 +113,13 @@ def analyze(
     errors: dict[int, dict[str, float | None]],
     cfg: dict | None = None,
     asset_type: str = "stock",
+    calibration: dict | None = None,
 ) -> list[dict]:
     """Bir varlığın tüm kısa ufukları için analysis satırları.
+
+    calibration : Kişi 1'in güven eşlemesi (engine.calibration.load()). Verilirse flat tavanı eşlemeden
+                  alınır ve her satıra geçmiş isabet ifadesi (indicators.calibration) eklenir.
+                  Backtest yeniden oynatması ham puanı ölçtüğü için bunu VERMEZ.
 
     prices    : tarih sıralı fiyat tablosu (prices tablosu sütunları), son satır = run_date'e kadar
     forecasts : {ufuk: {model: (p10, p50, p90)}} — yalnızca ensemble'a giren modeller
@@ -162,10 +168,14 @@ def analyze(
             - sum(penalties.values())
         )
         cap = cc.get("flat_max", 100) if flat else 100
+        if flat and calibration is not None:
+            cap = cal.flat_cap(calibration, asset_type, h, cap)
         confidence = int(round(_clip(raw, 0, cap)))
 
+        calib = cal.describe(calibration, asset_type, h, direction, confidence)
         indicators = {
             **snap,
+            **({"calibration": calib} if calib is not None else {}),
             "regime_details": regime.details,
             "confidence_parts": {
                 "base": cc["base"],

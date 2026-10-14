@@ -34,6 +34,7 @@ from typing import Any
 import pandas as pd
 from sqlalchemy import Engine, create_engine, text
 
+from engine import calibration as cal
 from engine import decision as dec
 from engine import regime as reg
 
@@ -154,6 +155,18 @@ def market_regime(prices: pd.DataFrame, cfg: dict) -> str | None:
     return reg.classify(px.drop(columns="code"), cfg.get("regime")).name
 
 
+def load_calibration(cfg: dict) -> dict | None:
+    """config.yaml 'calibration' bölümü; dosya yoksa ya da kapalıysa None (ham puanlar kullanılır)."""
+    c = cfg.get("calibration") or {}
+    if not c.get("enabled", True):
+        return None
+    path = c.get("path")
+    mapping = cal.load(cal.REPO_DIR / path if path else None)
+    if mapping is None:
+        log.info("Güven eşlemesi bulunamadı; kalibrasyonsuz devam ediliyor")
+    return mapping
+
+
 def analyze_all(
     run_date: date,
     assets: dict[str, str],
@@ -161,6 +174,7 @@ def analyze_all(
     fc: pd.DataFrame,
     err: pd.DataFrame,
     cfg: dict,
+    calibration: dict | None = None,
 ) -> tuple[list[dict], dict]:
     """Tüm varlıklar için analysis satırları ve istatistik. Bir varlığın hatası diğerlerini durdurmaz."""
     fcs, errs = group_forecasts(fc), group_errors(err)
@@ -176,6 +190,7 @@ def analyze_all(
         "skipped_short_history": 0,
         "failed": [],
         "market_regime": market,
+        "calibration": calibration is not None,
     }
     for code, asset_type in assets.items():
         if code not in fcs:
@@ -186,7 +201,7 @@ def analyze_all(
             stats["skipped_short_history"] += 1
             continue
         try:
-            out = dec.analyze(code, run_date, px, fcs[code], errs.get(code, {}), cfg, asset_type)
+            out = dec.analyze(code, run_date, px, fcs[code], errs.get(code, {}), cfg, asset_type, calibration)
         except Exception as e:  # noqa: BLE001 — tek varlık zinciri durdurmasın
             log.warning("%s analiz edilemedi: %r", code, e)
             stats["failed"].append({"code": code, "error": repr(e)[:200]})
@@ -282,7 +297,7 @@ def run(
             job_id = job_start(conn, run_date)
 
     try:
-        rows, stats = analyze_all(run_date, assets, prices, fc, err, cfg)
+        rows, stats = analyze_all(run_date, assets, prices, fc, err, cfg, load_calibration(cfg))
         stats["seconds"] = round(time.monotonic() - t0, 1)
         failed = is_failure(stats)
         if not dry_run:

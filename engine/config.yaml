@@ -42,6 +42,12 @@ confidence:
   penalty_high_vol: 10         # rejim yüksek oynaklıksa
   flat_max: 50                 # flat (yön yok) satırların güveni en fazla bu; sinyal üretmezler
 
+calibration:
+  # Kişi 1'in backtest'inden güven → geçmiş isabet eşlemesi (backtest/confidence_mapping.py üretir).
+  # Dosya yoksa motor kalibrasyonsuz çalışır. Karar motorunun puanlaması değişince eşleme yeniden üretilmeli.
+  enabled: true
+  path: backtest/summary/confidence_mapping.json
+
 risk:
   # Varlığın kendi yıllık volatilitesi (%, vol20) → seviye; tür başına eşik.
   # Başlangıç değerleri; Kişi 1'in vol20 dağılımı ve backtest'iyle ayarlanacak.
