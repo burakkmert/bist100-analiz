@@ -42,8 +42,8 @@ def ctx(database):
     eng = create_engine(database)
     with eng.begin() as c:
         c.execute(
-            text("INSERT INTO assets(code, name, type) VALUES (:c, :c, 'stock')"),
-            [{"c": code} for code in CODES],
+            text("INSERT INTO assets(code, name, type) VALUES (:c, :n, 'stock')"),
+            [{"c": code, "n": code} for code in CODES],
         )
         past = [RD - timedelta(days=k) for k in range(10, -1, -1)]
         c.execute(
