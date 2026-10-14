@@ -35,6 +35,7 @@ from backtest.confidence_calibration import BUCKET_LABELS, BUCKETS, load_ohlc_fr
 REPORTS = Path(__file__).resolve().parent / "reports"
 SUMMARY = Path(__file__).resolve().parent / "summary"
 MIN_N = 30            # kovada en az örnek
+MIN_KEY_N = 300       # anahtarın (tür, ufuk, yön) toplamında en az örnek; azıyla tesadüfi "bilgi verici" çıkar
 MIN_GAIN = 0.05       # eşlenen isabet oranı aralığı (en yüksek - en düşük) en az bu kadar olmalı
 MIN_EDGE = 0.02       # en yüksek eşlenen oran kıyasın en az bu kadar üstünde olmalı
 MIN_SPEARMAN = 0.05
@@ -94,6 +95,9 @@ def fit_mapping(df: pd.DataFrame, min_n: int = MIN_N) -> dict:
         tab = tab[tab["n"] >= min_n]
         entry = {"informative": False, "base_rate": round(base[k], 4), "n": int(len(g)), "fitted": {},
                  "suggested_cap": None, "reason": "yetersiz örnek"}
+        if len(g) < MIN_KEY_N:
+            keys[k] = entry          # yetersiz örnek: güven gösterilmez
+            continue
         if len(tab) >= 2:
             fitted = pav(tab["hit"].tolist(), tab["n"].tolist())
             entry["fitted"] = {b: round(float(v), 4) for b, v in zip(tab.index, fitted)}
@@ -111,7 +115,7 @@ def fit_mapping(df: pd.DataFrame, min_n: int = MIN_N) -> dict:
                 entry["suggested_cap"] = int(round(100 * max(fitted)))
         keys[k] = entry
     return {"version": 1, "buckets": BUCKET_LABELS, "keys": keys,
-            "rules": {"min_n": min_n, "min_gain": MIN_GAIN, "min_edge": MIN_EDGE, "min_spearman": MIN_SPEARMAN}}
+            "rules": {"min_n": min_n, "min_key_n": MIN_KEY_N, "min_gain": MIN_GAIN, "min_edge": MIN_EDGE, "min_spearman": MIN_SPEARMAN}}
 
 
 # ---------------------------------------------------------------- kullanım (Kişi 2'nin motoru bunu çağırabilir)
